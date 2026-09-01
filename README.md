@@ -31,10 +31,13 @@ The app never assigns beauty or attractiveness scores and never sends raw images
 - `src/store`: one small authenticated, persisted app store used by the screens.
 - `app`: Expo Router stack, tab, and focused product routes.
 - `src/components`: reusable visual primitives, not one dashboard component.
+- `src/components/ui`: React Native Reusables components generated from the official registry.
 - `supabase/migrations`: production-oriented schema and row-level security.
 - `tests`: pure business-logic tests.
 
 The checked system plan is maintained with Archify: see [`docs/glow-architecture.architecture.json`](docs/glow-architecture.architecture.json) and the [interactive map](docs/glow-architecture.html). Architecture changes are planned in the JSON, validated/delivered, and then implemented in the app.
+
+The shared Glow UI layer is built on [React Native Reusables](https://github.com/founded-labs/react-native-reusables) with NativeWind. The existing screen-facing API remains in `src/components/ui.tsx`, while its buttons, cards, badges, text, and separators use the generated local primitives. Run `npx @react-native-reusables/cli@latest doctor -y` to verify the setup.
 
 ## Modes and environment
 

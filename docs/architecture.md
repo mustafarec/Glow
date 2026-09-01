@@ -18,6 +18,7 @@ The repository was empty at the start of implementation: no source files, packag
 ## Chosen shape
 
 - Expo + React Native + TypeScript with React Navigation.
+- React Native Reusables primitives with NativeWind provide the shared Button, Text, Card, Badge, and Separator foundation; Glow's compatibility layer keeps screen contracts stable while the visual system evolves.
 - A small `AppStore` owns the current demo/user state and persists non-secret state through a storage adapter. Guest state uses AsyncStorage; authenticated state uses a user-scoped Supabase snapshot with a local cache fallback. Screens consume actions rather than writing storage directly.
 - Domain logic is pure TypeScript. It does not import React Native, Expo, or a provider SDK.
 - `ImageAnalysisProvider`, `ImageGenerationProvider`, and `RecommendationProvider` are the only AI seams. The mock provider is the default implementation.

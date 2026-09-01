@@ -307,19 +307,21 @@ export function AppProvider({ children }: PropsWithChildren) {
 
     try {
       const providerJob = await aiProvider.generate({
+        clientRequestId: jobId,
         recommendationId,
         recommendationTitle: recommendation.title,
         sourceImageUri: current.selfies[0]?.uri ?? DEMO_SELFIE_URI,
         sourceStoragePath: current.selfies[0]?.storagePath,
         resultImageUri: recommendation.imageUri,
       });
-      updateState((next) => ({ ...next, generationJobs: { ...next.generationJobs, [jobId]: { ...next.generationJobs[jobId], status: 'processing', providerJobId: providerJob.id, updatedAt: new Date().toISOString() } } }));
+      const providerJobId = providerJob.providerJobId ?? providerJob.id;
+      updateState((next) => ({ ...next, generationJobs: { ...next.generationJobs, [jobId]: { ...next.generationJobs[jobId], status: 'processing', providerJobId, updatedAt: new Date().toISOString() } } }));
 
       const poll = async () => {
         try {
           const result = await aiProvider.getJob(providerJob.id);
           if (result.status === 'completed' || result.status === 'failed') {
-            completeGeneration(jobId, providerJob.id, result.status, result.resultUri, result.error);
+            completeGeneration(jobId, result.providerJobId ?? providerJobId, result.status, result.resultUri, result.error);
             return;
           }
           setTimeout(() => void poll(), 300);

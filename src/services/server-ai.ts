@@ -35,6 +35,7 @@ export function buildServerGenerationRequest(input: GenerationInput): ServerGene
 
   return {
     action: 'generate',
+    clientRequestId: input.clientRequestId,
     recommendationId: input.recommendationId,
     recommendationTitle: input.recommendationTitle,
     ...(input.sourceStoragePath ? { sourceStoragePath: input.sourceStoragePath } : {}),

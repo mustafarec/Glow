@@ -45,6 +45,7 @@ export interface ServerAnalyzeRequest {
 
 export interface ServerGenerateRequest {
   action: 'generate';
+  clientRequestId: string;
   recommendationId: string;
   recommendationTitle: string;
   sourceStoragePath?: string;
@@ -60,6 +61,7 @@ export type ServerAIRequest = ServerAnalyzeRequest | ServerGenerateRequest | Ser
 export interface ServerJob {
   id: string;
   status: ServerGenerationStatus;
+  providerJobId?: string;
   resultUri?: string;
   error?: string;
 }
@@ -119,7 +121,8 @@ function isServerGlowProfile(value: unknown): value is ServerGlowProfile {
 function isServerJob(value: unknown): value is ServerJob {
   if (!isRecord(value) || typeof value.id !== 'string') return false;
   if (value.status !== 'queued' && value.status !== 'processing' && value.status !== 'completed' && value.status !== 'failed') return false;
-  return (value.resultUri === undefined || typeof value.resultUri === 'string')
+  return (value.providerJobId === undefined || typeof value.providerJobId === 'string')
+    && (value.resultUri === undefined || typeof value.resultUri === 'string')
     && (value.error === undefined || typeof value.error === 'string');
 }
 

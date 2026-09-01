@@ -56,8 +56,8 @@
       "id": "ai-function",
       "type": "backend",
       "label": "Supabase Edge Function",
-      "sublabel": "auth · request contract",
-      "tag": "staging-ready",
+      "sublabel": "auth · jobs · request contract",
+      "tag": "durable staging",
       "pos": [960, 100],
       "size": [210, 70]
     },
@@ -83,7 +83,7 @@
       "id": "supabase",
       "type": "cloud",
       "label": "Supabase backend",
-      "sublabel": "Auth · state · RLS · media",
+      "sublabel": "Auth · state · jobs · RLS · media",
       "tag": "current slices",
       "pos": [980, 560],
       "size": [210, 70]
@@ -219,7 +219,7 @@
     {
       "from": "ai-function",
       "to": "supabase",
-      "label": "verify JWT + owner paths",
+      "label": "verify JWT + persist owner job",
       "variant": "security",
       "fromSide": "bottom",
       "toSide": "top",
@@ -260,8 +260,8 @@
       "dot": "amber",
       "title": "Production gates",
       "items": [
-        "Current slices: Supabase Auth, snapshot/RLS, and consent-gated private media.",
-        "Next: connect a real AI provider, persist server-side jobs, and add billing/webhook verification.",
+        "Current slices: Supabase Auth, snapshot/RLS, private media, and durable generation_jobs.",
+        "Next: connect a real AI provider and add billing/webhook verification.",
         "Keep EXPO_PUBLIC_* limited to non-secret client configuration."
       ]
     },

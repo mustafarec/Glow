@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const migrationPath = path.resolve(process.cwd(), 'supabase/migrations/0002_identity_state_snapshot.sql');
+const schemaPath = path.resolve(process.cwd(), 'supabase/migrations/0001_glow_schema.sql');
 
 describe('Supabase identity migration contract', () => {
   it('creates a user-owned snapshot with RLS and an update timestamp', async () => {
@@ -20,5 +21,16 @@ describe('Supabase identity migration contract', () => {
     const sql = await readFile(migrationPath, 'utf8');
     expect(sql).not.toMatch(/to public/i);
     expect(sql).not.toMatch(/using \(true\)/i);
+  });
+
+  it('keeps generation jobs durable and owner-scoped', async () => {
+    const sql = await readFile(schemaPath, 'utf8');
+
+    expect(sql).toContain('create table if not exists public.generation_jobs');
+    expect(sql).toContain('provider_job_id text');
+    expect(sql).toContain("status text not null default 'queued'");
+    expect(sql).toContain("status in ('queued', 'processing', 'completed', 'failed')");
+    expect(sql).toContain('credits_refunded boolean not null default false');
+    expect(sql).toMatch(/create policy generation_jobs_self[\s\S]*user_id = auth\.uid\(\)/);
   });
 });

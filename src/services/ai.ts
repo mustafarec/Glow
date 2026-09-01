@@ -11,6 +11,7 @@ export interface ImageAnalysisInput {
 }
 
 export interface GenerationInput {
+  clientRequestId: string;
   recommendationId: string;
   recommendationTitle: string;
   sourceImageUri: string;
@@ -21,6 +22,7 @@ export interface GenerationInput {
 export interface ProviderGenerationJob {
   id: string;
   status: GenerationStatus;
+  providerJobId?: string;
   resultUri?: string;
   error?: string;
 }

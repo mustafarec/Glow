@@ -30,15 +30,15 @@ describe('server AI boundary contract', () => {
   });
 
   it('keeps generation requests path-only', () => {
-    const request = buildServerGenerationRequest({ recommendationId: 'look-1', recommendationTitle: 'Layers', sourceImageUri: 'https://signed.example/private.jpg', sourceStoragePath: 'user-a/private.jpg', resultImageUri: 'https://demo.example/result.jpg' });
-    expect(request).toEqual({ action: 'generate', recommendationId: 'look-1', recommendationTitle: 'Layers', sourceStoragePath: 'user-a/private.jpg' });
+    const request = buildServerGenerationRequest({ clientRequestId: 'job-1', recommendationId: 'look-1', recommendationTitle: 'Layers', sourceImageUri: 'https://signed.example/private.jpg', sourceStoragePath: 'user-a/private.jpg', resultImageUri: 'https://demo.example/result.jpg' });
+    expect(request).toEqual({ action: 'generate', clientRequestId: 'job-1', recommendationId: 'look-1', recommendationTitle: 'Layers', sourceStoragePath: 'user-a/private.jpg' });
     expect(JSON.stringify(request)).not.toContain('signed.example');
   });
 
   it('parses valid profile and job responses but rejects malformed server data', () => {
     const profile = createMockGlowProfile('Maya', 'soft-glam');
     expect(parseServerAIResponse({ action: 'analyze', profile })).toMatchObject({ action: 'analyze', profile });
-    expect(parseServerAIResponse({ action: 'get-job', job: { id: 'job-1', status: 'completed' } })).toEqual({ action: 'get-job', job: { id: 'job-1', status: 'completed' } });
+    expect(parseServerAIResponse({ action: 'get-job', job: { id: 'job-1', status: 'completed', providerJobId: 'provider-1' } })).toEqual({ action: 'get-job', job: { id: 'job-1', status: 'completed', providerJobId: 'provider-1' } });
     expect(() => parseServerAIResponse({ action: 'analyze', profile: { displayName: 'Maya' } })).toThrow('invalid profile');
   });
 
@@ -59,6 +59,10 @@ describe('server AI boundary contract', () => {
     expect(source).toContain('auth.getUser(token)');
     expect(source).toContain('Authorization: `Bearer ${token}`');
     expect(source).toContain("from('selfies')");
+    expect(source).toContain("from('generation_jobs')");
+    expect(source).toContain(".eq('user_id', userId)");
+    expect(source).toContain('crypto.subtle.digest');
+    expect(source).not.toContain('stagingJob(jobId)');
     expect(source).not.toMatch(/SERVICE_ROLE|service_role|OPENAI_API_KEY/);
   });
 });

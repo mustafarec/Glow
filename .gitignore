@@ -41,6 +41,9 @@ yarn-error.*
 # local tooling checkout
 /tools/archify/
 
+# Supabase CLI local metadata
+/supabase/.temp/
+
 # typescript
 *.tsbuildinfo
 

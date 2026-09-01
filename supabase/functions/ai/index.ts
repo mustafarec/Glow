@@ -7,6 +7,7 @@ import {
   type ServerGlowProfile,
   type ServerSelfieRef,
 } from '../../../src/services/ai-contract.ts';
+import { getNextStagingStatus, getServerGenerationCreditCost } from '../../../src/services/generation-job.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -69,6 +70,7 @@ function readRequest(value: unknown): ServerAIRequest {
   if (record.action === 'generate') {
     return {
       action: 'generate',
+      clientRequestId: readString(record.clientRequestId, 'client request id', 120),
       recommendationId: readString(record.recommendationId, 'recommendation id', 120),
       recommendationTitle: readString(record.recommendationTitle, 'recommendation title', 160),
       ...(record.sourceStoragePath === undefined ? {} : { sourceStoragePath: readString(record.sourceStoragePath, 'source storage path', 300) }),
@@ -137,15 +139,89 @@ async function verifyOwnerPaths(client: ReturnType<typeof createClient>, userId:
   if (uniquePaths.some((path) => !owned.has(path))) throw new HttpError(403, 'forbidden_path', 'A selfie path is not available to the current account.');
 }
 
-function createStagingJobId(): string {
-  return `glow-staging-${Date.now()}-${crypto.randomUUID()}`;
+const generationJobColumns = 'id,status,provider_job_id,generated_look_id,error_code,credits_refunded,created_at,updated_at';
+
+type GenerationJobRow = {
+  id: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  provider_job_id: string | null;
+  generated_look_id: string | null;
+  error_code: string | null;
+  credits_refunded: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+async function stableGenerationJobId(userId: string, clientRequestId: string): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${userId}:${clientRequestId}`)));
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes.slice(0, 16)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function stagingJob(jobId: string) {
-  const match = /^glow-staging-(\d+)-[0-9a-f-]{36}$/.exec(jobId);
-  if (!match) throw new HttpError(404, 'job_not_found', 'The generation job was not found.');
-  // ponytail: encode staging timing in the id; persist generation_jobs when a real provider lands.
-  return { id: jobId, status: Date.now() - Number(match[1]) < 900 ? 'processing' : 'completed' };
+function toServerJob(row: GenerationJobRow): Record<string, unknown> {
+  return {
+    id: row.id,
+    status: row.status,
+    ...(row.provider_job_id ? { providerJobId: row.provider_job_id } : {}),
+    ...(row.error_code ? { error: row.error_code } : {}),
+  };
+}
+
+async function findOwnedGenerationJob(client: ReturnType<typeof createClient>, userId: string, jobId: string): Promise<GenerationJobRow | null> {
+  const { data, error } = await client
+    .from('generation_jobs')
+    .select(generationJobColumns)
+    .eq('id', jobId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw new HttpError(500, 'job_lookup_failed', 'The generation job lookup failed.');
+  return data as GenerationJobRow | null;
+}
+
+async function createGenerationJob(client: ReturnType<typeof createClient>, userId: string, clientRequestId: string, recommendationId: string): Promise<GenerationJobRow> {
+  const id = await stableGenerationJobId(userId, clientRequestId);
+  const existing = await findOwnedGenerationJob(client, userId, id);
+  if (existing) return existing;
+
+  const providerJobId = `glow-staging-${clientRequestId}`;
+  const { data, error } = await client
+    .from('generation_jobs')
+    .insert({
+      id,
+      user_id: userId,
+      provider_job_id: providerJobId,
+      status: 'queued',
+      credit_cost: getServerGenerationCreditCost(recommendationId),
+    })
+    .select(generationJobColumns)
+    .single();
+  if (!error && data) return data as GenerationJobRow;
+
+  // The deterministic primary key makes a retried request converge on the first row.
+  const raced = await findOwnedGenerationJob(client, userId, id);
+  if (raced) return raced;
+  throw new HttpError(500, 'job_create_failed', 'The generation job could not be created.');
+}
+
+async function advanceStagingJob(client: ReturnType<typeof createClient>, userId: string, row: GenerationJobRow): Promise<GenerationJobRow> {
+  const createdAt = Date.parse(row.created_at);
+  const ageMs = Number.isFinite(createdAt) ? Math.max(0, Date.now() - createdAt) : 0;
+  const nextStatus = getNextStagingStatus(row.status, ageMs);
+  if (nextStatus === row.status) return row;
+
+  const { data, error } = await client
+    .from('generation_jobs')
+    .update({ status: nextStatus })
+    .eq('id', row.id)
+    .eq('user_id', userId)
+    .eq('status', row.status)
+    .select(generationJobColumns)
+    .maybeSingle();
+  if (error) throw new HttpError(500, 'job_update_failed', 'The generation job could not be updated.');
+  if (data) return data as GenerationJobRow;
+  return (await findOwnedGenerationJob(client, userId, row.id)) ?? row;
 }
 
 async function handle(request: Request): Promise<Response> {
@@ -163,10 +239,14 @@ async function handle(request: Request): Promise<Response> {
 
     if (body.action === 'generate') {
       if (body.sourceStoragePath) await verifyOwnerPaths(client, userId, [body.sourceStoragePath]);
-      return json({ action: 'generate', job: { id: createStagingJobId(), status: 'queued' } });
+      const job = await createGenerationJob(client, userId, body.clientRequestId, body.recommendationId);
+      return json({ action: 'generate', job: toServerJob(job) });
     }
 
-    return json({ action: 'get-job', job: stagingJob(body.jobId) });
+    const currentJob = await findOwnedGenerationJob(client, userId, body.jobId);
+    if (!currentJob) throw new HttpError(404, 'job_not_found', 'The generation job was not found.');
+    const job = await advanceStagingJob(client, userId, currentJob);
+    return json({ action: 'get-job', job: toServerJob(job) });
   } catch (error) {
     if (error instanceof HttpError) return json({ error: error.code, message: error.message }, error.status);
     console.error('ai_boundary_internal_error');

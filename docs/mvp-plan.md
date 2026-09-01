@@ -41,8 +41,8 @@ Feature limits and generation costs are configuration, not screen constants. Fre
 
 The server-side AI boundary is now present in staging; its next hardening slice is:
 
-1. Persist provider job ids and the existing `queued → processing → completed|failed` lifecycle server-side.
-2. Connect a real provider with timeout, retry, refund, and rate-limit policy.
+1. **Completed in staging:** Persist provider job ids and the existing `queued → processing → completed|failed` lifecycle server-side with owner-scoped reads and deterministic retry convergence.
+2. Connect a real provider with timeout, retry, authoritative refund, and rate-limit policy.
 3. Keep provider keys, retries, refunds, and rate limits out of the Expo bundle.
 4. Keep mock mode, consent-gated media, and the current screen flow working while the server adapter evolves.
 

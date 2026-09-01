@@ -5,14 +5,13 @@ import {
   isSupportedServerFocus,
   isSupportedServerGoal,
   type ServerAIRequest,
-  type ServerFocus,
   type ServerGlowProfile,
   type ServerRecommendation,
   type ServerRecommendationCategory,
   type ServerRecommendRequest,
   type ServerSelfieRef,
 } from '../../../src/services/ai-contract.ts';
-import { getNextStagingStatus, getServerGenerationCreditCost } from '../../../src/services/generation-job.ts';
+import { getServerGenerationCreditCost } from '../../../src/services/generation-job.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +29,6 @@ const OPENAI_IMAGE_MODEL = 'gpt-image-2';
 const MAX_INPUT_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_OUTPUT_IMAGE_BYTES = 30 * 1024 * 1024;
 
-type ServerMode = 'STAGING' | 'PRODUCTION';
 type StorageClient = ReturnType<typeof createClient>;
 type ImagePayload = { bytes: Uint8Array; contentType: string; dataUrl: string; extension: string };
 
@@ -47,8 +45,10 @@ function json(body: Record<string, unknown>, status = 200): Response {
   });
 }
 
-function getServerMode(): ServerMode {
-  return Deno.env.get('AI_MODE')?.trim().toUpperCase() === 'PRODUCTION' ? 'PRODUCTION' : 'STAGING';
+function requireProductionMode(): void {
+  if (Deno.env.get('AI_MODE')?.trim().toUpperCase() !== 'PRODUCTION') {
+    throw new HttpError(503, 'production_not_configured', 'Production AI is not configured.');
+  }
 }
 
 function readBearerToken(request: Request): string {
@@ -144,66 +144,6 @@ function readRequest(value: unknown): ServerAIRequest {
     return { action: 'get-job', jobId: readString(record.jobId, 'job id', 120) };
   }
   throw new HttpError(400, 'invalid_request', 'Unsupported AI action.');
-}
-
-function createStagingProfile(displayName: string, goal: string): ServerGlowProfile {
-  const now = new Date().toISOString();
-  const aestheticByGoal: Record<string, string> = {
-    natural: 'fresh and effortless',
-    'soft-glam': 'softly polished',
-    elegant: 'quietly refined',
-    clean: 'clean and luminous',
-    professional: 'considered and confident',
-    'date-night': 'softly magnetic',
-    'wedding-guest': 'romantic and refined',
-    summer: 'sunlit and warm',
-    birthday: 'playful with polish',
-  };
-  return {
-    displayName,
-    faceShape: 'Soft oval',
-    undertone: 'warm',
-    colorSeason: 'Soft Autumn',
-    currentHairColor: 'Medium brunette',
-    currentHairLength: 'Shoulder length',
-    preferredAesthetic: aestheticByGoal[goal] ?? aestheticByGoal['soft-glam'],
-    makeupIntensity: goal === 'natural' || goal === 'clean' ? 'light and skin-led' : 'softly defined',
-    bestHairDirections: ['Long layers', 'Face-framing pieces', 'Curtain bangs'],
-    hairColors: ['Warm chocolate', 'Chestnut', 'Soft caramel'],
-    makeupDirection: ['Peach blush', 'Warm nude lips', 'Soft brown liner'],
-    metals: ['Gold', 'Warm mixed metals'],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-function createStagingRecommendations(profile: ServerGlowProfile, goal: ServerRecommendRequest['goal'], focus: ServerFocus): ServerRecommendation[] {
-  const categories: Record<ServerFocus, ServerRecommendationCategory[]> = {
-    hair: ['hairstyle', 'hairstyle', 'hair-color', 'makeup', 'complete-glow'],
-    'hair-color': ['hair-color', 'hair-color', 'hairstyle', 'makeup', 'complete-glow'],
-    makeup: ['makeup', 'makeup', 'hairstyle', 'hair-color', 'complete-glow'],
-    'personal-colors': ['hair-color', 'makeup', 'complete-glow', 'hairstyle', 'hair-color'],
-    overall: ['hairstyle', 'hair-color', 'makeup', 'complete-glow', 'hairstyle'],
-  };
-  const base = [
-    ['long-layers', 'Long layers + curtain bangs', 'Movement around the face', 'A gentle shape change that keeps your length while opening up the face.', 'BEST MATCH', 'The softness mirrors your proportions and keeps the look considered.'],
-    ['warm-chocolate', 'Warm chocolate brunette', 'A deeper, richer tone', 'A low-drama color shift that brings warmth and dimension to your palette.', 'YOUR COLOR', 'Warm chocolate sits naturally inside your palette and looks considered in every light.'],
-    ['peach-soft-glam', 'Peach soft-glam placement', 'Lifted blush + warm nude lip', 'A simple makeup map that adds light without feeling heavy.', 'EASY WIN', 'Peach tones echo your warm undertone for a fresh, awake finish.'],
-    ['butterfly-cut', 'Butterfly cut', 'Airy volume, easy movement', 'A bolder layered option when you want more visible shape and swing.', 'ALTERNATIVE', 'This keeps the softness of your best direction while adding more movement.'],
-    ['complete-glow', 'The complete warm glow', 'Hair, color + makeup together', 'A full look direction built from your personal signals.', 'FULL LOOK', `A cohesive ${profile.colorSeason} direction for your ${goal.replace('-', ' ')} goal.`],
-  ] as const;
-  return base.map((item, index) => ({
-    id: item[0],
-    title: item[1],
-    subtitle: item[2],
-    description: item[3],
-    category: categories[focus][index],
-    impact: index === 0 ? 'biggest-impact' : index < 3 ? 'high-impact' : 'explore',
-    tag: item[4],
-    explanation: item[5],
-    creditCost: categories[focus][index] === 'complete-glow' ? 15 : 5,
-    goalFit: goal,
-  }));
 }
 
 async function authorize(request: Request) {
@@ -553,46 +493,21 @@ async function createGenerationJob(client: StorageClient, userId: string, reques
   const existing = await findOwnedGenerationJob(client, userId, id);
   if (existing) return existing;
 
-  const providerJobId = getServerMode() === 'PRODUCTION' ? null : `glow-staging-${request.clientRequestId}`;
-  const { data, error } = await client
-    .from('generation_jobs')
-    .insert({
-      id,
-      user_id: userId,
-      provider_job_id: providerJobId,
-      recommendation_id: request.recommendationId,
-      recommendation_title: request.recommendationTitle,
-      recommendation_category: request.recommendationCategory,
-      source_storage_path: request.sourceStoragePath ?? null,
-      status: 'queued',
-      credit_cost: getServerGenerationCreditCost(request.recommendationId, request.recommendationCategory),
-    })
-    .select(generationJobColumns)
-    .single();
-  if (!error && data) return data as GenerationJobRow;
+  const { error } = await client.rpc('reserve_generation_credits', {
+    p_job_id: id,
+    p_recommendation_id: request.recommendationId,
+    p_recommendation_title: request.recommendationTitle,
+    p_recommendation_category: request.recommendationCategory,
+    p_source_storage_path: request.sourceStoragePath ?? null,
+  });
+  if (error) {
+    if (error.message === 'INSUFFICIENT_CREDITS') throw new HttpError(402, 'insufficient_credits', 'There are not enough Glow credits for this preview.');
+    throw new HttpError(500, 'credit_reservation_failed', 'The preview credit reservation could not be completed.');
+  }
 
-  const raced = await findOwnedGenerationJob(client, userId, id);
-  if (raced) return raced;
+  const reserved = await findOwnedGenerationJob(client, userId, id);
+  if (reserved) return reserved;
   throw new HttpError(500, 'job_create_failed', 'The generation job could not be created.');
-}
-
-async function advanceStagingJob(client: StorageClient, userId: string, row: GenerationJobRow): Promise<GenerationJobRow> {
-  const createdAt = Date.parse(row.created_at);
-  const ageMs = Number.isFinite(createdAt) ? Math.max(0, Date.now() - createdAt) : 0;
-  const nextStatus = getNextStagingStatus(row.status, ageMs);
-  if (nextStatus === row.status) return row;
-
-  const { data, error } = await client
-    .from('generation_jobs')
-    .update({ status: nextStatus })
-    .eq('id', row.id)
-    .eq('user_id', userId)
-    .eq('status', row.status)
-    .select(generationJobColumns)
-    .maybeSingle();
-  if (error) throw new HttpError(500, 'job_update_failed', 'The generation job could not be updated.');
-  if (data) return data as GenerationJobRow;
-  return (await findOwnedGenerationJob(client, userId, row.id)) ?? row;
 }
 
 async function claimProductionJob(client: StorageClient, userId: string, row: GenerationJobRow): Promise<{ row: GenerationJobRow; claimed: boolean }> {
@@ -615,16 +530,12 @@ function failureCode(error: unknown): string {
 }
 
 async function markProductionJobFailed(client: StorageClient, userId: string, row: GenerationJobRow, error: unknown): Promise<GenerationJobRow> {
-  const { data, error: updateError } = await client
-    .from('generation_jobs')
-    .update({ status: 'failed', error_code: failureCode(error) })
-    .eq('id', row.id)
-    .eq('user_id', userId)
-    .eq('status', 'processing')
-    .select(generationJobColumns)
-    .maybeSingle();
-  if (updateError) throw new HttpError(500, 'job_update_failed', 'The failed generation job could not be recorded.');
-  return (data as GenerationJobRow | null) ?? (await findOwnedGenerationJob(client, userId, row.id)) ?? { ...row, status: 'failed', error_code: failureCode(error) };
+  const { error: updateError } = await client.rpc('fail_generation_job_and_refund', {
+    p_job_id: row.id,
+    p_error_code: failureCode(error),
+  });
+  if (updateError) throw new HttpError(500, 'job_update_failed', 'The failed generation job and credit refund could not be recorded.');
+  return (await findOwnedGenerationJob(client, userId, row.id)) ?? { ...row, status: 'failed', error_code: failureCode(error), credits_refunded: true };
 }
 
 function buildGenerationPrompt(row: GenerationJobRow): string {
@@ -682,33 +593,29 @@ async function handle(request: Request): Promise<Response> {
   try {
     const { client, userId } = await authorize(request);
     const body = readRequest(await request.json().catch(() => null));
-    const mode = getServerMode();
+    requireProductionMode();
 
     if (body.action === 'analyze') {
       await verifyOwnerPaths(client, userId, body.selfies.map((selfie) => selfie.storagePath));
-      const profile = mode === 'PRODUCTION'
-        ? await analyzeWithOpenAI(client, body.displayName, body.goal, body.selfies)
-        : createStagingProfile(body.displayName, body.goal);
-      return json({ action: 'analyze', provider: mode === 'PRODUCTION' ? 'openai' : 'staging', model: mode === 'PRODUCTION' ? OPENAI_ANALYSIS_MODEL : 'contract-v1', profile });
+      const profile = await analyzeWithOpenAI(client, body.displayName, body.goal, body.selfies);
+      return json({ action: 'analyze', provider: 'openai', model: OPENAI_ANALYSIS_MODEL, profile });
     }
 
     if (body.action === 'recommend') {
-      const recommendations = mode === 'PRODUCTION'
-        ? await recommendWithOpenAI(body)
-        : createStagingRecommendations(body.profile, body.goal, body.focus);
-      return json({ action: 'recommend', provider: mode === 'PRODUCTION' ? 'openai' : 'staging', model: mode === 'PRODUCTION' ? OPENAI_ANALYSIS_MODEL : 'contract-v1', recommendations });
+      const recommendations = await recommendWithOpenAI(body);
+      return json({ action: 'recommend', provider: 'openai', model: OPENAI_ANALYSIS_MODEL, recommendations });
     }
 
     if (body.action === 'generate') {
       if (body.sourceStoragePath) await verifyOwnerPaths(client, userId, [body.sourceStoragePath]);
       const job = await createGenerationJob(client, userId, body);
-      const current = mode === 'PRODUCTION' ? await processProductionJob(client, userId, job) : await advanceStagingJob(client, userId, job);
+      const current = await processProductionJob(client, userId, job);
       return json({ action: 'generate', job: await toServerJob(client, current) });
     }
 
     const currentJob = await findOwnedGenerationJob(client, userId, body.jobId);
     if (!currentJob) throw new HttpError(404, 'job_not_found', 'The generation job was not found.');
-    const job = mode === 'PRODUCTION' ? await processProductionJob(client, userId, currentJob) : await advanceStagingJob(client, userId, currentJob);
+    const job = await processProductionJob(client, userId, currentJob);
     return json({ action: 'get-job', job: await toServerJob(client, job) });
   } catch (error) {
     if (error instanceof HttpError) return json({ error: error.code, message: error.message }, error.status);

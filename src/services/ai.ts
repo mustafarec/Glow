@@ -1,4 +1,3 @@
-import { createMockGlowProfile, createMockRecommendations } from '@/domain/profile';
 import { FocusId, GenerationStatus, GlowGoalId, GlowProfile, Recommendation, RecommendationCategory, SelfieAsset } from '@/domain/types';
 import { supabase } from '@/services/supabase';
 
@@ -17,7 +16,6 @@ export interface GenerationInput {
   recommendationCategory: RecommendationCategory;
   sourceImageUri: string;
   sourceStoragePath?: string;
-  resultImageUri: string;
 }
 
 export interface ProviderGenerationJob {
@@ -43,48 +41,31 @@ export interface ImageGenerationProvider {
 
 export interface GlowAIProvider extends ImageAnalysisProvider, RecommendationProvider, ImageGenerationProvider {}
 
-const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+class ProductionUnavailableProvider implements GlowAIProvider {
+  constructor(private readonly reason: string) {}
 
-class MockAIProvider implements GlowAIProvider {
-  private readonly jobs = new Map<string, ProviderGenerationJob>();
-
-  async analyze(input: ImageAnalysisInput): Promise<GlowProfile> {
-    await wait(1200);
-    return createMockGlowProfile(input.displayName, input.goal);
+  async analyze(): Promise<GlowProfile> {
+    throw new Error(this.reason);
   }
 
-  async recommend(profile: GlowProfile, goal: GlowGoalId, focus: FocusId): Promise<Recommendation[]> {
-    await wait(240);
-    return createMockRecommendations(profile, goal, focus);
+  async recommend(): Promise<Recommendation[]> {
+    throw new Error(this.reason);
   }
 
-  async generate(input: GenerationInput): Promise<ProviderGenerationJob> {
-    const id = `mock-provider-${Date.now()}`;
-    const job: ProviderGenerationJob = { id, status: 'queued' };
-    this.jobs.set(id, job);
-
-    setTimeout(() => {
-      const shouldFail = process.env.EXPO_PUBLIC_MOCK_FAILURE === 'true';
-      this.jobs.set(id, shouldFail
-        ? { id, status: 'failed', error: 'The mock renderer was asked to fail.' }
-        : { id, status: 'completed', resultUri: input.resultImageUri });
-    }, 1600);
-
-    return job;
+  async generate(): Promise<ProviderGenerationJob> {
+    throw new Error(this.reason);
   }
 
-  async getJob(jobId: string): Promise<ProviderGenerationJob> {
-    await wait(80);
-    return this.jobs.get(jobId) ?? { id: jobId, status: 'failed', error: 'Generation job was not found.' };
+  async getJob(): Promise<ProviderGenerationJob> {
+    throw new Error(this.reason);
   }
 }
 
-export type AIMode = 'MOCK' | 'STAGING' | 'PRODUCTION';
+const productionMode = process.env.EXPO_PUBLIC_AI_MODE?.trim().toUpperCase() === 'PRODUCTION';
+const unavailableReason = !productionMode
+  ? 'Production AI is not enabled in this build.'
+  : 'Production AI is not configured. Check the Supabase connection.';
 
-const requestedMode = process.env.EXPO_PUBLIC_AI_MODE?.trim().toUpperCase();
-export const AI_MODE: AIMode = requestedMode === 'STAGING' || requestedMode === 'PRODUCTION' ? requestedMode : 'MOCK';
-
-// ponytail: one server function covers staging and production until a real provider/job store is selected.
-export const aiProvider: GlowAIProvider = AI_MODE === 'MOCK' || !supabase
-  ? new MockAIProvider()
-  : new ServerAIProvider(supabase);
+export const aiProvider: GlowAIProvider = productionMode && supabase
+  ? new ServerAIProvider(supabase)
+  : new ProductionUnavailableProvider(unavailableReason);

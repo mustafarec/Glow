@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { createMockRecommendations } from '@/domain/profile';
 import type { FocusId, GlowGoalId, GlowProfile, Recommendation } from '@/domain/types';
 
 import type {
@@ -16,6 +15,31 @@ import { AI_FUNCTION_NAME, isOwnedServerPath, parseServerAIResponse } from './ai
 import type { GenerationInput, GlowAIProvider, ImageAnalysisInput, ProviderGenerationJob } from './ai';
 
 const LOCAL_URI = /^(file|data):/i;
+
+export class ServerAIError extends Error {
+  constructor(readonly code: string | undefined, readonly status: number | undefined, message: string) {
+    super(message);
+    this.name = 'ServerAIError';
+  }
+}
+
+async function toServerAIError(error: unknown): Promise<ServerAIError> {
+  const context = (error as { context?: unknown } | null)?.context;
+  const response = context as { status?: unknown; clone?: () => { json: () => Promise<unknown> } } | undefined;
+  let body: Record<string, unknown> | null = null;
+  if (response?.clone) {
+    try {
+      const candidate = await response.clone().json();
+      body = candidate && typeof candidate === 'object' && !Array.isArray(candidate) ? candidate as Record<string, unknown> : null;
+    } catch {
+      // Keep provider details out of the client when the error body is unreadable.
+    }
+  }
+  const code = typeof body?.error === 'string' ? body.error : undefined;
+  const status = typeof response?.status === 'number' ? response.status : undefined;
+  const message = code === 'insufficient_credits' ? 'Not enough Glow credits.' : 'The server AI boundary is unavailable.';
+  return new ServerAIError(code, status, message);
+}
 
 export function buildServerAnalysisRequest(input: ImageAnalysisInput): ServerAnalyzeRequest {
   if (input.selfies.some((selfie) => !selfie.storagePath && LOCAL_URI.test(selfie.uri))) {
@@ -53,7 +77,7 @@ export class ServerAIProvider implements GlowAIProvider {
 
   private async invoke(request: ServerAIRequest): Promise<ServerAIResponse> {
     const { data, error } = await this.client.functions.invoke(AI_FUNCTION_NAME, { body: request });
-    if (error) throw new Error('The server AI boundary is unavailable.');
+    if (error) throw await toServerAIError(error);
     return parseServerAIResponse(data);
   }
 
@@ -66,11 +90,7 @@ export class ServerAIProvider implements GlowAIProvider {
   async recommend(profile: GlowProfile, goal: GlowGoalId, focus: FocusId): Promise<Recommendation[]> {
     const response = await this.invoke(buildServerRecommendationRequest(profile, goal, focus));
     if (response.action !== 'recommend') throw new Error('The server AI boundary returned the wrong response.');
-    const fallback = createMockRecommendations(profile, goal, focus);
-    return response.recommendations.map((item, index) => ({
-      ...item,
-      imageUri: fallback[index]?.imageUri ?? fallback[0]?.imageUri ?? '',
-    }));
+    return response.recommendations.map((item) => ({ ...item }));
   }
 
   async generate(input: GenerationInput): Promise<ProviderGenerationJob> {

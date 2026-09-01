@@ -1,9 +1,6 @@
 import { RecommendationCategory } from './types';
 
-export type AiMode = 'MOCK' | 'STAGING' | 'PRODUCTION';
-
 export const APP_CONFIG = {
-  aiMode: (process.env.EXPO_PUBLIC_AI_MODE as AiMode | undefined) ?? 'MOCK',
   freePreviewAllowance: 3,
   creditCosts: {
     hairstyle: 5,

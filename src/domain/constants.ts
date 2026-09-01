@@ -1,17 +1,5 @@
 import { FocusId, GlowGoalId, RecommendationCategory } from './types';
 
-export const DEMO_SELFIE_URI =
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=85';
-
-export const DEMO_LOOK_URIS = {
-  layers: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=85',
-  butterfly: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=85',
-  bob: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1000&q=85',
-  color: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1000&q=85',
-  makeup: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=85',
-  glow: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=1000&q=85',
-} as const;
-
 export const FOCUS_OPTIONS: Array<{ id: FocusId; label: string; description: string }> = [
   { id: 'hair', label: 'Hair', description: 'Cuts, layers & shape' },
   { id: 'hair-color', label: 'Hair color', description: 'Tones that feel like you' },

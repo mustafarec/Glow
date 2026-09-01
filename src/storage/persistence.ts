@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { AppState } from '@/domain/types';
 import { SupabaseStateStorage } from '@/storage/supabase';
 
-const STORAGE_KEY = 'glow.mvp.app-state.v1';
+const STORAGE_KEY = 'glow.app-state.v2';
 
 export type StorageScope = string | null;
 

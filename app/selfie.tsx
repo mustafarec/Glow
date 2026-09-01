@@ -4,14 +4,13 @@ import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
-import { AppText, Button, ChoiceCard, Eyebrow, GlowImage, IconButton, Pill } from '@/components/ui';
-import { DEMO_SELFIE_URI } from '@/domain/constants';
+import { AppText, Button, Eyebrow, GlowImage, IconButton, ImagePlaceholder, Pill } from '@/components/ui';
 import { useAppStore } from '@/store/AppStore';
 import { colors, radius, spacing } from '@/theme';
 
 export default function SelfieScreen() {
   const router = useRouter();
-  const { state, addSelfie, setImageConsent, uploadConsentedSelfies, useDemoProfile } = useAppStore();
+  const { state, auth, addSelfie, setImageConsent, uploadConsentedSelfies } = useAppStore();
   const [consented, setConsented] = useState(state.consentToUseImages);
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -22,7 +21,7 @@ export default function SelfieScreen() {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Photo permission needed', 'Glow only uses the photos you choose for your private profile. You can also continue with a demo profile.');
+        Alert.alert('Photo permission needed', 'Glow only uses the photos you choose for your private profile. Allow photo access to continue.');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 5], quality: 0.85 });
@@ -37,6 +36,11 @@ export default function SelfieScreen() {
   const continueToAnalysis = async () => {
     if (!consented || !state.selfies.length) {
       Alert.alert('One clear selfie first', 'Choose a clear front-facing selfie and confirm that Glow may use it for your private styling profile.');
+      return;
+    }
+    if (!auth.userId) {
+      Alert.alert('Sign in required', 'Sign in before creating your private Glow Profile so your consented selfie can be secured to your account.');
+      router.push('/auth');
       return;
     }
     setImageConsent(true);
@@ -59,10 +63,9 @@ export default function SelfieScreen() {
       <Eyebrow>YOUR STARTING POINT</Eyebrow><AppText variant="display" style={styles.title}>Show us the real you.</AppText><AppText style={styles.subtitle}>Two or three clear angles help us suggest shape and color while keeping your identity yours.</AppText>
       <View style={styles.guidance}><View style={styles.guidanceItem}><View style={styles.check}><AppText style={styles.checkText}>✓</AppText></View><AppText>Natural light</AppText></View><View style={styles.guidanceItem}><View style={styles.check}><AppText style={styles.checkText}>✓</AppText></View><AppText>No heavy filter</AppText></View><View style={styles.guidanceItem}><View style={styles.check}><AppText style={styles.checkText}>✓</AppText></View><AppText>Face the camera</AppText></View></View>
       <Pressable onPress={pickSelfie} style={({ pressed }) => [styles.upload, pressed && styles.pressed, saving && styles.disabled]}><View style={styles.uploadIcon}><AppText variant="display" style={styles.plus}>+</AppText></View><AppText variant="title">{picking ? 'Opening your photos…' : saving ? 'Securing your photos…' : 'Add a clear selfie'}</AppText><AppText variant="caption" style={styles.muted}>Front-facing is best · up to 3 photos</AppText></Pressable>
-      {state.selfies.length ? <View style={styles.previewRow}>{state.selfies.map((selfie) => <GlowImage key={selfie.id} uri={selfie.uri} style={styles.preview} />)}</View> : <GlowImage uri={DEMO_SELFIE_URI} style={styles.demoPreview} />}
+      {state.selfies.length ? <View style={styles.previewRow}>{state.selfies.map((selfie) => <GlowImage key={selfie.id} uri={selfie.uri} style={styles.preview} />)}</View> : <ImagePlaceholder style={styles.emptyPreview} label="Your selected selfie will appear here." />}
       <Pressable disabled={saving} onPress={() => { const next = !consented; setConsented(next); setImageConsent(next); }} style={[styles.consent, saving && styles.disabled]}><View style={[styles.checkbox, consented && styles.checkboxChecked]}>{consented ? <AppText style={styles.checkText}>✓</AppText> : null}</View><AppText variant="caption" style={styles.consentText}>I agree that Glow may use the photos I choose to create my private Glow Profile. I can delete them any time.</AppText></Pressable>
       <Button tone="dark" icon="sparkles-outline" disabled={saving} onPress={() => void continueToAnalysis}>{saving ? 'Securing your photos…' : 'Create my blueprint'}</Button>
-      <ChoiceCard title="Prefer to explore first?" description="Use a demo profile with placeholder imagery" onPress={() => { useDemoProfile(); router.replace('/blueprint'); }} icon="eye-outline" />
     </Screen>
   );
 }
@@ -81,7 +84,7 @@ const styles = StyleSheet.create({
   muted: { color: colors.muted },
   previewRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   preview: { borderRadius: radius.md, flex: 1, height: 120 },
-  demoPreview: { alignSelf: 'center', borderRadius: radius.md, height: 150, marginTop: spacing.md, opacity: 0.35, width: 105 },
+  emptyPreview: { borderRadius: radius.md, height: 150, marginTop: spacing.md, width: '100%' },
   consent: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm, marginVertical: spacing.lg },
   checkbox: { alignItems: 'center', borderColor: colors.line, borderRadius: 7, borderWidth: 1, height: 24, justifyContent: 'center', width: 24 },
   checkboxChecked: { backgroundColor: colors.clay, borderColor: colors.clay },

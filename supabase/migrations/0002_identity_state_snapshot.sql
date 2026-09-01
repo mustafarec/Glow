@@ -1,4 +1,4 @@
--- Transitional identity/data-perimeter seam for the mock-first mobile MVP.
+-- Transitional identity/data-perimeter seam for the mobile MVP.
 -- The normalized tables in 0001 remain the production source of truth.
 create table if not exists public.app_state_snapshots (
   user_id uuid primary key references auth.users(id) on delete cascade,

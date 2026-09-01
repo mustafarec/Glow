@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 const migrationPath = path.resolve(process.cwd(), 'supabase/migrations/0002_identity_state_snapshot.sql');
 const schemaPath = path.resolve(process.cwd(), 'supabase/migrations/0001_glow_schema.sql');
 const aiMigrationPath = path.resolve(process.cwd(), 'supabase/migrations/0003_openai_media_jobs.sql');
+const creditsMigrationPath = path.resolve(process.cwd(), 'supabase/migrations/0004_server_authoritative_credits.sql');
 
 describe('Supabase identity migration contract', () => {
   it('creates a user-owned snapshot with RLS and an update timestamp', async () => {
@@ -42,5 +43,16 @@ describe('Supabase identity migration contract', () => {
     expect(sql).toContain('add column if not exists result_storage_path text');
     expect(sql).toMatch(/create policy glow_generated_read[\s\S]*bucket_id = 'glow-generated'[\s\S]*auth\.uid\(\)/);
     expect(sql).toMatch(/create policy glow_generated_insert[\s\S]*bucket_id = 'glow-generated'[\s\S]*auth\.uid\(\)/);
+  });
+
+  it('keeps credits server-authoritative and refunds failed jobs exactly once', async () => {
+    const sql = await readFile(creditsMigrationPath, 'utf8');
+    expect(sql).toContain('create or replace function public.ensure_credit_wallet()');
+    expect(sql).toContain('grant execute on function public.ensure_credit_wallet() to authenticated');
+    expect(sql).toContain('create or replace function public.reserve_generation_credits(');
+    expect(sql).toContain('raise exception \'INSUFFICIENT_CREDITS\'');
+    expect(sql).toContain('create or replace function public.fail_generation_job_and_refund(');
+    expect(sql).toContain('if not job_row.credits_refunded then');
+    expect(sql).not.toMatch(/grant execute on function public\.(ensure_credit_wallet|reserve_generation_credits|fail_generation_job_and_refund)[^;]* to anon/i);
   });
 });

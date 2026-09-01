@@ -11,13 +11,12 @@ function isSafeLook(look: AppState['generatedLooks'][number]): boolean {
   return isRemoteUri(look.beforeImageUri) && isRemoteUri(look.resultImageUri);
 }
 
-/**
- * Keep the first remote seam intentionally small. Local file/data URIs never
- * cross it; the private Storage adapter will own selfie bytes in the next slice.
- */
 export function sanitizeRemoteState(state: AppState): Partial<AppState> {
+  // Credits, purchases, and entitlements are server-owned and never belong in
+  // a client-controlled snapshot.
+  const { wallet: _wallet, creditTransactions: _creditTransactions, subscription: _subscription, purchases: _purchases, ...userState } = state;
   return {
-    ...state,
+    ...userState,
     selfies: state.selfies.filter((selfie) => isRemoteUri(selfie.uri)),
     generatedLooks: state.generatedLooks.filter(isSafeLook),
     savedLooks: state.savedLooks.filter(isSafeLook),

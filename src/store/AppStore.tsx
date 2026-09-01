@@ -1,32 +1,27 @@
 import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { DEMO_SELFIE_URI } from '@/domain/constants';
-import { APP_CONFIG } from '@/domain/config';
-import { grantCredits, reserveCredits } from '@/domain/credits';
-import { settleFailedGeneration } from '@/domain/generation';
-import { createMockGlowProfile, createMockRecommendations } from '@/domain/profile';
 import {
   AppState,
-  CreditTransaction,
   GeneratedLook,
   GenerationJob,
   GlowGoalId,
   RecommendationFeedback,
   TimelineEntry,
 } from '@/domain/types';
-import { AI_MODE, aiProvider } from '@/services/ai';
+import { aiProvider } from '@/services/ai';
 import { track } from '@/services/analytics';
 import { AuthActionResult, AuthProvider, AuthSnapshot, getCurrentAuthSnapshot, getInitialAuthSnapshot, requestMagicLink, signInWithProvider, signOutCurrentUser, subscribeToAuthChanges } from '@/services/auth';
 import { supabase, supabaseConfigured } from '@/services/supabase';
+import { loadCreditAccount, type CreditAccount } from '@/services/account';
+import { ServerAIError } from '@/services/server-ai';
 import { SupabaseMediaStorage } from '@/storage/media';
 import { createStateStorage, StorageScope } from '@/storage/persistence';
 
 const id = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export function createInitialState(): AppState {
-  const createdAt = new Date().toISOString();
   return {
-    displayName: 'Maya',
+    displayName: '',
     goal: 'soft-glam',
     focus: 'overall',
     hasOnboarded: false,
@@ -38,8 +33,8 @@ export function createInitialState(): AppState {
     generatedLooks: [],
     savedLooks: [],
     timelineEntries: [],
-    wallet: { balance: 15, lifetimeGranted: 15, lifetimeSpent: 0 },
-    creditTransactions: [{ id: 'welcome-credits', type: 'grant', amount: 15, label: 'Welcome credits', createdAt }],
+    wallet: { balance: 0, lifetimeGranted: 0, lifetimeSpent: 0 },
+    creditTransactions: [],
     subscription: { status: 'free', plan: 'free' },
     purchases: [],
     generationJobs: {},
@@ -47,25 +42,25 @@ export function createInitialState(): AppState {
   };
 }
 
-type StartGenerationResult = { ok: true; jobId: string } | { ok: false; reason: 'insufficient-credits' | 'missing-recommendation' };
+type StartGenerationResult = { ok: true; jobId: string } | { ok: false; reason: 'insufficient-credits' | 'missing-recommendation' | 'auth-required' | 'missing-selfie' | 'provider-unavailable' };
 
-export function mergePersistedState(saved: Partial<AppState> | null): AppState {
+export function mergePersistedState(saved: Partial<AppState> | null, creditAccount: CreditAccount | null = null): AppState {
   const initial = createInitialState();
-  if (!saved) return initial;
+  const persisted = saved ?? {};
   return {
     ...initial,
-    ...saved,
-    selfies: Array.isArray(saved.selfies) ? saved.selfies : initial.selfies,
-    recommendations: Array.isArray(saved.recommendations) ? saved.recommendations : initial.recommendations,
-    generatedLooks: Array.isArray(saved.generatedLooks) ? saved.generatedLooks : initial.generatedLooks,
-    savedLooks: Array.isArray(saved.savedLooks) ? saved.savedLooks : initial.savedLooks,
-    timelineEntries: Array.isArray(saved.timelineEntries) ? saved.timelineEntries : initial.timelineEntries,
-    creditTransactions: Array.isArray(saved.creditTransactions) ? saved.creditTransactions : initial.creditTransactions,
-    purchases: Array.isArray(saved.purchases) ? saved.purchases : initial.purchases,
-    feedback: saved.feedback ?? initial.feedback,
-    generationJobs: saved.generationJobs ?? initial.generationJobs,
-    wallet: saved.wallet ? { ...initial.wallet, ...saved.wallet } : initial.wallet,
-    subscription: saved.subscription ? { ...initial.subscription, ...saved.subscription } : initial.subscription,
+    ...persisted,
+    selfies: Array.isArray(persisted.selfies) ? persisted.selfies : initial.selfies,
+    recommendations: Array.isArray(persisted.recommendations) ? persisted.recommendations : initial.recommendations,
+    generatedLooks: Array.isArray(persisted.generatedLooks) ? persisted.generatedLooks : initial.generatedLooks,
+    savedLooks: Array.isArray(persisted.savedLooks) ? persisted.savedLooks : initial.savedLooks,
+    timelineEntries: Array.isArray(persisted.timelineEntries) ? persisted.timelineEntries : initial.timelineEntries,
+    creditTransactions: creditAccount?.creditTransactions ?? initial.creditTransactions,
+    feedback: persisted.feedback ?? initial.feedback,
+    generationJobs: persisted.generationJobs ?? initial.generationJobs,
+    wallet: creditAccount?.wallet ?? initial.wallet,
+    subscription: initial.subscription,
+    purchases: initial.purchases,
   };
 }
 
@@ -82,7 +77,6 @@ interface AppStoreValue {
   addSelfie: (uri: string, angle?: 'front' | 'side' | 'unknown') => void;
   setImageConsent: (allowed: boolean) => void;
   uploadConsentedSelfies: () => Promise<boolean>;
-  useDemoProfile: (overrides?: Partial<Pick<AppState, 'displayName' | 'goal' | 'focus'>>) => void;
   runAnalysis: () => Promise<void>;
   setGoal: (goal: GlowGoalId) => Promise<void>;
   setFeedback: (recommendationId: string, feedback: RecommendationFeedback) => void;
@@ -90,8 +84,6 @@ interface AppStoreValue {
   saveLook: (lookId: string) => void;
   toggleFavorite: (lookId: string) => void;
   addTimelineEntry: (entry: Omit<TimelineEntry, 'id' | 'createdAt'>) => void;
-  purchaseCredits: (packId: string) => void;
-  activateSubscription: (plan: 'monthly' | 'annual') => void;
   deleteAllData: () => Promise<void>;
 }
 
@@ -127,23 +119,44 @@ export function AppProvider({ children }: PropsWithChildren) {
     setHydrated(false);
 
     let saved: Partial<AppState> | null = null;
+    let creditAccount: CreditAccount | null = null;
     try {
-      saved = await storage.load(nextAuth.userId);
+      const accountState = await storage.load(nextAuth.userId);
+      saved = accountState ?? (nextAuth.userId ? await storage.load(null) : null);
       if (nextAuth.userId && mediaStorage && saved?.selfies?.length) {
         saved = { ...saved, selfies: await mediaStorage.refreshSignedUrls(nextAuth.userId, saved.selfies) };
       }
     } catch {
       // The local cache is still the safe fallback if a storage adapter fails.
     }
+    if (nextAuth.userId && supabase) {
+      try {
+        creditAccount = await loadCreditAccount(supabase);
+      } catch {
+        // A missing or unavailable account service must never become local credit data.
+      }
+    }
     if (generation !== hydrationGenerationRef.current) return;
 
-    const next = mergePersistedState(saved);
+    const next = mergePersistedState(saved, creditAccount);
     stateRef.current = next;
     setState(next);
     setAuthReady(true);
     setHydrated(true);
-    track('app_open', { mode: nextAuth.userId ? 'supabase' : supabaseConfigured ? 'guest' : 'mock' });
+    track('app_open', { mode: nextAuth.userId ? 'supabase' : supabaseConfigured ? 'guest' : 'unconfigured' });
   }, [mediaStorage, storage]);
+
+  const refreshCreditAccount = useCallback(async () => {
+    const userId = scopeRef.current;
+    if (!userId || !supabase) return;
+    try {
+      const creditAccount = await loadCreditAccount(supabase);
+      if (scopeRef.current !== userId) return;
+      updateState((current) => ({ ...current, wallet: creditAccount.wallet, creditTransactions: creditAccount.creditTransactions }));
+    } catch {
+      // Keep the last verified balance visible; never synthesize a replacement.
+    }
+  }, [updateState]);
 
   useEffect(() => {
     let active = true;
@@ -181,7 +194,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [hydrated, state, storage]);
 
   const setOnboarding = useCallback((displayName: string, goal: GlowGoalId, focus: AppState['focus']) => {
-    updateState((current) => ({ ...current, displayName: displayName.trim() || 'Maya', goal, focus }));
+    updateState((current) => ({ ...current, displayName: displayName.trim(), goal, focus }));
     track('onboarding_started', { goal, focus });
   }, [updateState]);
 
@@ -199,9 +212,9 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const uploadConsentedSelfies = useCallback(async (): Promise<boolean> => {
     const scope = scopeRef.current;
-    if (!scope || !mediaStorage) return true;
-
     const current = stateRef.current;
+    if (!scope || !mediaStorage) return current.selfies.length > 0 && current.selfies.every((selfie) => Boolean(selfie.storagePath));
+
     const pending = current.selfies.filter((selfie) => !selfie.storagePath && !/^https?:\/\//i.test(selfie.uri));
     if (!pending.length) return true;
 
@@ -215,35 +228,20 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
   }, [mediaStorage, updateState]);
 
-  const useDemoProfile = useCallback((overrides: Partial<Pick<AppState, 'displayName' | 'goal' | 'focus'>> = {}) => {
-    const current = { ...stateRef.current, ...overrides };
-    const profile = createMockGlowProfile(current.displayName, current.goal);
-    const recommendations = createMockRecommendations(profile, current.goal, current.focus);
-    const demoSelfie = { id: 'demo-selfie', uri: DEMO_SELFIE_URI, angle: 'front' as const, createdAt: new Date().toISOString() };
-    updateState((next) => ({
-      ...next,
-      displayName: current.displayName,
-      goal: current.goal,
-      focus: current.focus,
-      profile,
-      recommendations,
-      selfies: next.selfies.length ? next.selfies : [demoSelfie],
-      hasOnboarded: true,
-    }));
-    track('glow_profile_created', { mode: 'demo' });
-  }, [updateState]);
-
   const runAnalysis = useCallback(async () => {
     const current = stateRef.current;
-    const selfies = current.selfies.length
-      ? current.selfies
-      : [{ id: 'demo-selfie', uri: DEMO_SELFIE_URI, angle: 'front' as const, createdAt: new Date().toISOString() }];
+    if (!scopeRef.current || !mediaStorage) throw new Error('Sign in is required before creating a private Glow Profile.');
+    if (!current.displayName.trim()) throw new Error('A name is required before creating a private Glow Profile.');
+    if (!current.selfies.length || current.selfies.some((selfie) => !selfie.storagePath)) {
+      throw new Error('A consented selfie is required before creating a private Glow Profile.');
+    }
+    const selfies = current.selfies;
     const profile = await aiProvider.analyze({ displayName: current.displayName, goal: current.goal, selfies });
     const recommendations = await aiProvider.recommend(profile, current.goal, current.focus);
-    updateState((next) => ({ ...next, profile, recommendations, selfies: next.selfies.length ? next.selfies : selfies, hasOnboarded: true }));
-    track('glow_profile_created', { mode: AI_MODE.toLowerCase(), selfieCount: selfies.length });
+    updateState((next) => ({ ...next, profile, recommendations, hasOnboarded: true }));
+    track('glow_profile_created', { mode: 'production', selfieCount: selfies.length });
     track('onboarding_completed', { goal: current.goal });
-  }, [updateState]);
+  }, [mediaStorage, updateState]);
 
   const setGoal = useCallback(async (goal: GlowGoalId) => {
     const current = stateRef.current;
@@ -251,9 +249,8 @@ export function AppProvider({ children }: PropsWithChildren) {
       updateState((next) => ({ ...next, goal }));
       return;
     }
-    const profile = createMockGlowProfile(current.displayName, goal);
-    const recommendations = await aiProvider.recommend(profile, goal, current.focus);
-    updateState((next) => ({ ...next, goal, profile, recommendations }));
+    const recommendations = await aiProvider.recommend(current.profile, goal, current.focus);
+    updateState((next) => ({ ...next, goal, recommendations }));
   }, [updateState]);
 
   const setFeedback = useCallback((recommendationId: string, feedback: RecommendationFeedback) => {
@@ -265,23 +262,23 @@ export function AppProvider({ children }: PropsWithChildren) {
     updateState((current) => {
       const job = current.generationJobs[jobId];
       if (!job || job.status === 'completed' || (job.status === 'failed' && job.refunded)) return current;
-      if (providerStatus === 'failed') {
-        const settlement = settleFailedGeneration(job, current.wallet);
-        const refund: CreditTransaction = { id: id('refund'), type: 'refund', amount: settlement.refundAmount, label: 'Generation restored', createdAt: new Date().toISOString() };
-        const failedJob: GenerationJob = { ...settlement.job, providerJobId, error: error ?? settlement.job.error, updatedAt: new Date().toISOString() };
+      const recommendation = current.recommendations.find((item) => item.id === job.recommendationId);
+      const beforeImageUri = current.selfies[0]?.uri;
+      if (providerStatus === 'failed' || !recommendation || !beforeImageUri || !resultUri) {
+        const failure = error
+          ?? (providerStatus === 'failed' ? 'The production AI provider failed.' : !recommendation ? 'The recommendation is no longer available.' : !beforeImageUri ? 'The source selfie is no longer available.' : 'The AI provider returned no generated preview.');
+        const failedJob: GenerationJob = { ...job, status: 'failed', refunded: true, providerJobId, error: failure, updatedAt: new Date().toISOString() };
         track('generation_failed', { jobId, refunded: true });
-        return { ...current, wallet: settlement.wallet, creditTransactions: settlement.refundAmount ? [...current.creditTransactions, refund] : current.creditTransactions, generationJobs: { ...current.generationJobs, [jobId]: failedJob } };
+        return { ...current, generationJobs: { ...current.generationJobs, [jobId]: failedJob } };
       }
 
-      const recommendation = current.recommendations.find((item) => item.id === job.recommendationId);
-      if (!recommendation) return current;
       const look: GeneratedLook = {
         id: id('look'),
         recommendationId: recommendation.id,
         title: recommendation.title,
         category: recommendation.category,
-        beforeImageUri: current.selfies[0]?.uri ?? DEMO_SELFIE_URI,
-        resultImageUri: resultUri ?? recommendation.imageUri,
+        beforeImageUri,
+        resultImageUri: resultUri,
         createdAt: new Date().toISOString(),
         isFavorite: false,
       };
@@ -295,14 +292,13 @@ export function AppProvider({ children }: PropsWithChildren) {
     const current = stateRef.current;
     const recommendation = current.recommendations.find((item) => item.id === recommendationId);
     if (!recommendation) return { ok: false, reason: 'missing-recommendation' };
-    const reservation = reserveCredits(current.wallet, recommendation.creditCost);
-    if (!reservation.ok) return { ok: false, reason: 'insufficient-credits' };
-
+    if (!scopeRef.current || !mediaStorage) return { ok: false, reason: 'auth-required' };
+    const sourceSelfie = current.selfies[0];
+    if (!current.consentToUseImages || !sourceSelfie?.storagePath) return { ok: false, reason: 'missing-selfie' };
     const jobId = id('job');
     const now = new Date().toISOString();
     const job: GenerationJob = { id: jobId, recommendationId, status: 'queued', creditCost: recommendation.creditCost, refunded: false, createdAt: now, updatedAt: now };
-    const transaction: CreditTransaction = { id: id('reservation'), type: 'reservation', amount: -recommendation.creditCost, label: `Preview: ${recommendation.title}`, createdAt: now };
-    updateState((next) => ({ ...next, wallet: reservation.wallet, generationJobs: { ...next.generationJobs, [jobId]: job }, activeJobId: jobId, creditTransactions: [...next.creditTransactions, transaction] }));
+    updateState((next) => ({ ...next, generationJobs: { ...next.generationJobs, [jobId]: job }, activeJobId: jobId }));
     track('generation_started', { recommendationId, creditCost: recommendation.creditCost });
 
     try {
@@ -311,32 +307,36 @@ export function AppProvider({ children }: PropsWithChildren) {
         recommendationId,
         recommendationTitle: recommendation.title,
         recommendationCategory: recommendation.category,
-        sourceImageUri: current.selfies[0]?.uri ?? DEMO_SELFIE_URI,
-        sourceStoragePath: current.selfies[0]?.storagePath,
-        resultImageUri: recommendation.imageUri,
+        sourceImageUri: sourceSelfie.uri,
+        sourceStoragePath: sourceSelfie.storagePath,
       });
       const providerJobId = providerJob.providerJobId ?? providerJob.id;
       updateState((next) => ({ ...next, generationJobs: { ...next.generationJobs, [jobId]: { ...next.generationJobs[jobId], status: 'processing', providerJobId, updatedAt: new Date().toISOString() } } }));
+      void refreshCreditAccount();
 
       const poll = async () => {
         try {
           const result = await aiProvider.getJob(providerJob.id);
           if (result.status === 'completed' || result.status === 'failed') {
             completeGeneration(jobId, result.providerJobId ?? providerJobId, result.status, result.resultUri, result.error);
+            void refreshCreditAccount();
             return;
           }
           setTimeout(() => void poll(), 300);
         } catch (error) {
           completeGeneration(jobId, providerJob.id, 'failed', undefined, error instanceof Error ? error.message : undefined);
+          void refreshCreditAccount();
         }
       };
       void poll();
     } catch (error) {
       completeGeneration(jobId, 'unavailable', 'failed', undefined, error instanceof Error ? error.message : undefined);
+      void refreshCreditAccount();
+      return { ok: false, reason: error instanceof ServerAIError && error.code === 'insufficient_credits' ? 'insufficient-credits' : 'provider-unavailable' };
     }
 
     return { ok: true, jobId };
-  }, [completeGeneration, updateState]);
+  }, [completeGeneration, mediaStorage, refreshCreditAccount, updateState]);
 
   const saveLook = useCallback((lookId: string) => {
     updateState((current) => {
@@ -355,25 +355,6 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const addTimelineEntry = useCallback((entry: Omit<TimelineEntry, 'id' | 'createdAt'>) => {
     updateState((current) => ({ ...current, timelineEntries: [{ ...entry, id: id('timeline'), createdAt: new Date().toISOString() }, ...current.timelineEntries] }));
-  }, [updateState]);
-
-  const purchaseCredits = useCallback((packId: string) => {
-    const pack = APP_CONFIG.creditPacks.find((item) => item.id === packId);
-    if (!pack) return;
-    updateState((current) => ({
-      ...current,
-      wallet: grantCredits(current.wallet, pack.credits),
-      purchases: [{ id: id('purchase'), label: pack.label, amountLabel: pack.amountLabel, credits: pack.credits, createdAt: new Date().toISOString() }, ...current.purchases],
-      creditTransactions: [...current.creditTransactions, { id: id('purchase-credit'), type: 'purchase', amount: pack.credits, label: pack.label, createdAt: new Date().toISOString() }],
-    }));
-    track('credit_pack_purchased', { packId, credits: pack.credits });
-  }, [updateState]);
-
-  const activateSubscription = useCallback((plan: 'monthly' | 'annual') => {
-    const renewsAt = new Date(Date.now() + (plan === 'annual' ? 365 : 30) * 86400000).toISOString();
-    const selectedPlan = APP_CONFIG.subscriptionPlans.find((item) => item.id === plan);
-    updateState((current) => ({ ...current, subscription: { status: 'active', plan, renewsAt }, purchases: [{ id: id('subscription'), label: `Glow+ ${plan}`, amountLabel: selectedPlan?.amountLabel ?? 'Configured in store', createdAt: new Date().toISOString() }, ...current.purchases] }));
-    track('subscription_started', { plan });
   }, [updateState]);
 
   const deleteAllData = useCallback(async () => {
@@ -402,7 +383,6 @@ export function AppProvider({ children }: PropsWithChildren) {
     addSelfie,
     setImageConsent,
     uploadConsentedSelfies,
-    useDemoProfile,
     runAnalysis,
     setGoal,
     setFeedback,
@@ -410,10 +390,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     saveLook,
     toggleFavorite,
     addTimelineEntry,
-    purchaseCredits,
-    activateSubscription,
     deleteAllData,
-  }), [state, hydrated, auth, authReady, setOnboarding, addSelfie, setImageConsent, uploadConsentedSelfies, useDemoProfile, runAnalysis, setGoal, setFeedback, startGeneration, saveLook, toggleFavorite, addTimelineEntry, purchaseCredits, activateSubscription, deleteAllData]);
+  }), [state, hydrated, auth, authReady, setOnboarding, addSelfie, setImageConsent, uploadConsentedSelfies, runAnalysis, setGoal, setFeedback, startGeneration, saveLook, toggleFavorite, addTimelineEntry, deleteAllData]);
 
   return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;
 }

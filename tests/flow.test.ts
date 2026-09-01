@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createMockGlowProfile, createMockRecommendations } from '../src/domain/profile';
+import { createMockGlowProfile, createMockRecommendations } from './fixtures/profile';
 import { reserveCredits } from '../src/domain/credits';
 
 describe('primary onboarding to generation path', () => {

@@ -4,15 +4,12 @@ import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
 import { AppText, CreditBadge, Eyebrow, IconButton, Pill } from '@/components/ui';
-import { AI_MODE } from '@/services/ai';
 import { useAppStore } from '@/store/AppStore';
 import { colors, spacing } from '@/theme';
 
 export default function GenerateScreen() {
   const router = useRouter();
   const { state } = useAppStore();
-  const isMock = AI_MODE === 'MOCK';
-  const isStaging = AI_MODE === 'STAGING';
   const job = state.activeJobId ? state.generationJobs[state.activeJobId] : undefined;
   const navigated = useRef(false);
 
@@ -23,7 +20,7 @@ export default function GenerateScreen() {
     }
   }, [job?.resultLookId, job?.status, router]);
 
-  return <Screen scroll={false} contentStyle={styles.content}><View style={styles.top}><IconButton name="close" onPress={() => router.replace('/(tabs)/try')} label="Close preview" /><CreditBadge balance={state.wallet.balance} /></View><View style={styles.loader}><View style={styles.loaderOuter}><View style={styles.loaderInner}><AppText variant="display" style={styles.sparkle}>✦</AppText></View></View><Eyebrow>GLOW LAB · {isMock ? 'MOCK MODE' : `${AI_MODE} SERVER`}</Eyebrow><AppText variant="display" style={styles.title}>{job?.status === 'failed' ? 'Let’s try that again.' : 'Making space for your next look.'}</AppText><AppText style={styles.subtitle}>{job?.status === 'failed' ? job.error : isMock ? 'This MVP uses curated placeholder imagery.' : isStaging ? 'The authenticated server boundary is using curated staging imagery.' : 'Your consented selfie stays behind the authenticated server boundary while your selected direction is rendered.'}</AppText><View style={styles.steps}><Step active={job?.status === 'processing' || job?.status === 'queued'} label="Reading your profile" /><Step active={job?.status === 'processing'} label="Rendering the direction" /><Step active={false} label="Polishing your preview" /></View>{job?.status === 'failed' ? <Pill tone="accent">Your credits were restored</Pill> : <Pill tone="sage">Usually ready in a moment</Pill>}</View></Screen>;
+  return <Screen scroll={false} contentStyle={styles.content}><View style={styles.top}><IconButton name="close" onPress={() => router.replace('/(tabs)/try')} label="Close preview" /><CreditBadge balance={state.wallet.balance} /></View><View style={styles.loader}><View style={styles.loaderOuter}><View style={styles.loaderInner}><AppText variant="display" style={styles.sparkle}>✦</AppText></View></View><Eyebrow>GLOW LAB · PRODUCTION AI</Eyebrow><AppText variant="display" style={styles.title}>{job?.status === 'failed' ? 'Let’s try that again.' : 'Making space for your next look.'}</AppText><AppText style={styles.subtitle}>{job?.status === 'failed' ? job.error : 'Your consented selfie stays behind the authenticated server boundary while your selected direction is rendered.'}</AppText><View style={styles.steps}><Step active={job?.status === 'processing' || job?.status === 'queued'} label="Reading your profile" /><Step active={job?.status === 'processing'} label="Rendering the direction" /><Step active={false} label="Polishing your preview" /></View>{job?.status === 'failed' ? <Pill tone="accent">Your credits were restored</Pill> : <Pill tone="sage">Usually ready in a moment</Pill>}</View></Screen>;
 }
 
 function Step({ active, label }: { active: boolean; label: string }) { return <View style={styles.step}><View style={[styles.dot, active && styles.dotActive]} /><AppText variant="caption" style={active ? styles.activeStep : styles.inactiveStep}>{label}</AppText></View>; }

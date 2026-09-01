@@ -107,6 +107,15 @@ export function GlowImage({ uri, style, accessibilityLabel }: { uri: string; sty
   return <Image source={{ uri }} accessibilityLabel={accessibilityLabel} style={[styles.glowImage, style]} resizeMode="cover" />;
 }
 
+export function ImagePlaceholder({ style, label }: { style?: StyleProp<ViewStyle>; label?: string }) {
+  return (
+    <View accessibilityRole="image" accessibilityLabel={label ?? 'Image preview unavailable until it is generated.'} style={[styles.imagePlaceholder, style]}>
+      <Icon name="sparkles-outline" size={28} color={colors.clay} />
+      {label ? <AppText variant="caption" style={styles.placeholderText}>{label}</AppText> : null}
+    </View>
+  );
+}
+
 export function ImageSurface({ uri, children, style, height = 220 }: { uri: string; children?: ReactNode; style?: StyleProp<ViewStyle>; height?: number }) {
   return (
     <View style={[styles.imageSurface, { height }, style]}>
@@ -129,7 +138,7 @@ export function ChoiceCard({ selected, title, description, onPress, accent, icon
   );
 }
 
-export function RecommendationCard({ title, subtitle, tag, imageUri, onPress, compact = false }: { title: string; subtitle: string; tag: string; imageUri: string; onPress?: () => void; compact?: boolean }) {
+export function RecommendationCard({ title, subtitle, tag, imageUri, onPress, compact = false }: { title: string; subtitle: string; tag: string; imageUri?: string; onPress?: () => void; compact?: boolean }) {
   return (
     <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={({ pressed }) => [pressed && styles.pressed]}>
       <RNRCard className={cn(
@@ -137,7 +146,7 @@ export function RecommendationCard({ title, subtitle, tag, imageUri, onPress, co
           ? 'mb-2 min-h-[88px] flex-row items-center gap-2 rounded-xl border p-2 shadow-none'
           : 'mb-4 overflow-hidden rounded-3xl border-0 p-0 shadow-sm',
       )}>
-        <GlowImage uri={imageUri} style={compact ? styles.recommendationCompactImage : styles.recommendationImage} />
+        {imageUri ? <GlowImage uri={imageUri} style={compact ? styles.recommendationCompactImage : styles.recommendationImage} /> : <ImagePlaceholder style={compact ? styles.recommendationCompactImage : styles.recommendationImage} />}
         <View style={styles.recommendationCopy}>
           <AppText variant="eyebrow" style={styles.clayText}>{tag}</AppText>
           <AppText variant={compact ? 'label' : 'title'} style={styles.recommendationTitle}>{title}</AppText>
@@ -189,6 +198,8 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 13, fontWeight: '700' },
   imageSurface: { backgroundColor: colors.cream, borderRadius: radius.lg, overflow: 'hidden' },
   glowImage: { backgroundColor: colors.cream, borderRadius: radius.md },
+  imagePlaceholder: { alignItems: 'center', backgroundColor: colors.cream, justifyContent: 'center' },
+  placeholderText: { color: colors.inkSoft, marginTop: spacing.sm, maxWidth: 230, textAlign: 'center' },
   imageShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(20, 16, 12, 0.12)' },
   choiceIcon: { alignItems: 'center', borderRadius: radius.sm, height: 48, justifyContent: 'center', width: 48 },
   choiceDot: { backgroundColor: colors.clay, borderRadius: radius.pill, height: 9, width: 9 },

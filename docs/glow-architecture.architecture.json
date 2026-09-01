@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Glow — MVP to production architecture",
+    "title": "Glow — production architecture",
     "locale": "en",
     "quality_profile": "showcase",
     "viewBox": [1380, 700]
@@ -20,7 +20,7 @@
       "id": "ui",
       "type": "frontend",
       "label": "Expo app",
-      "sublabel": "Expo Router screens",
+      "sublabel": "Expo Router production screens",
       "tag": "implemented",
       "pos": [240, 330],
       "size": [180, 70]
@@ -47,8 +47,8 @@
       "id": "ai-adapter",
       "type": "backend",
       "label": "AI provider adapter",
-      "sublabel": "mock · server invoke",
-      "tag": "mode-gated",
+      "sublabel": "production server invoke",
+      "tag": "production-only",
       "pos": [980, 330],
       "size": [210, 70]
     },
@@ -56,7 +56,7 @@
       "id": "ai-function",
       "type": "backend",
       "label": "Supabase Edge Function",
-      "sublabel": "auth · jobs · production AI",
+      "sublabel": "auth · credits · jobs · production AI",
       "tag": "production",
       "pos": [960, 100],
       "size": [210, 70]
@@ -74,8 +74,8 @@
       "id": "local-store",
       "type": "database",
       "label": "AsyncStorage",
-      "sublabel": "guest + offline persistence",
-      "tag": "implemented",
+      "sublabel": "offline cache only",
+      "tag": "cache-only",
       "pos": [480, 560],
       "size": [190, 70]
     },
@@ -83,8 +83,8 @@
       "id": "supabase",
       "type": "cloud",
       "label": "Supabase backend",
-      "sublabel": "Auth · state · jobs · RLS · media",
-      "tag": "current slices",
+      "sublabel": "Auth · credits · jobs · RLS",
+      "tag": "live",
       "pos": [980, 560],
       "size": [210, 70]
     },
@@ -111,7 +111,7 @@
       "type": "external",
       "label": "App Store billing",
       "sublabel": "purchases · webhooks",
-      "tag": "planned",
+      "tag": "not connected",
       "pos": [1215, 560],
       "size": [160, 70]
     }
@@ -119,7 +119,7 @@
   "boundaries": [
     {
       "kind": "region",
-      "label": "Glow mobile client — implemented MVP",
+      "label": "Glow mobile client — production runtime",
       "wraps": ["ui", "store", "domain", "ai-adapter", "device-media", "local-store", "media-adapter"]
     },
     {
@@ -192,7 +192,7 @@
     {
       "from": "store",
       "to": "local-store",
-      "label": "guest hydrate / persist",
+      "label": "offline cache hydrate / persist",
       "variant": "dashed",
       "fromSide": "bottom",
       "toSide": "top",
@@ -219,7 +219,7 @@
     {
       "from": "ai-function",
       "to": "supabase",
-      "label": "verify JWT + persist owner job",
+      "label": "verify JWT + reserve/refund credits + persist owner job",
       "variant": "security",
       "fromSide": "bottom",
       "toSide": "top",
@@ -229,7 +229,7 @@
     {
       "from": "store",
       "to": "supabase",
-      "label": "user-scoped state sync",
+      "label": "user-scoped state + verified wallet sync",
       "variant": "dashed",
       "fromSide": "bottom",
       "toSide": "top",
@@ -253,15 +253,15 @@
         "Expo Router owns the mobile-first flow.",
         "AppStore coordinates consent, AI, credits, jobs, saving, and timeline state.",
         "Consent-gated private media uses owner paths, signed URLs, and selfie metadata.",
-        "AsyncStorage + MockAIProvider keep local mode available without backend credentials."
+        "Production AI and credits are fail-closed: no local profile, recommendation, generated-image, grant, reservation, or refund fallback exists."
       ]
     },
     {
       "dot": "amber",
       "title": "Production gates",
       "items": [
-        "Supabase Auth, snapshot/RLS, private media, production AI, and durable jobs are live.",
-        "Next: authoritative credits, billing/webhook verification, and provider hardening.",
+        "Supabase Auth, snapshot/RLS, private media, production AI, durable jobs, and credit RPCs are implemented.",
+        "Next: deploy/verify credit RPCs, billing/webhook verification, provider hardening, and store release checks.",
         "Keep EXPO_PUBLIC_* limited to non-secret client configuration."
       ]
     },

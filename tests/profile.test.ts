@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createMockGlowProfile, createMockRecommendations } from '../src/domain/profile';
+import { createMockGlowProfile, createMockRecommendations } from './fixtures/profile';
 
 describe('Glow Profile', () => {
   it('creates structured styling signals without an attractiveness score', () => {

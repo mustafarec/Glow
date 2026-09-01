@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { createMockGlowProfile } from '../src/domain/profile';
+import { createMockGlowProfile } from './fixtures/profile';
 import type { ImageAnalysisInput } from '../src/services/ai';
 import { ServerAIProvider, buildServerAnalysisRequest, buildServerGenerationRequest, buildServerRecommendationRequest } from '../src/services/server-ai';
 import { parseServerAIResponse } from '../src/services/ai-contract';
@@ -30,7 +30,7 @@ describe('server AI boundary contract', () => {
   });
 
   it('keeps generation requests path-only', () => {
-    const request = buildServerGenerationRequest({ clientRequestId: 'job-1', recommendationId: 'look-1', recommendationTitle: 'Layers', recommendationCategory: 'hairstyle', sourceImageUri: 'https://signed.example/private.jpg', sourceStoragePath: 'user-a/private.jpg', resultImageUri: 'https://demo.example/result.jpg' });
+    const request = buildServerGenerationRequest({ clientRequestId: 'job-1', recommendationId: 'look-1', recommendationTitle: 'Layers', recommendationCategory: 'hairstyle', sourceImageUri: 'https://signed.example/private.jpg', sourceStoragePath: 'user-a/private.jpg' });
     expect(request).toEqual({ action: 'generate', clientRequestId: 'job-1', recommendationId: 'look-1', recommendationTitle: 'Layers', recommendationCategory: 'hairstyle', sourceStoragePath: 'user-a/private.jpg' });
     expect(JSON.stringify(request)).not.toContain('signed.example');
   });
@@ -65,6 +65,8 @@ describe('server AI boundary contract', () => {
     expect(source).toContain('Authorization: `Bearer ${token}`');
     expect(source).toContain("from('selfies')");
     expect(source).toContain("from('generation_jobs')");
+    expect(source).toContain("rpc('reserve_generation_credits'");
+    expect(source).toContain("rpc('fail_generation_job_and_refund'");
     expect(source).toContain(".eq('user_id', userId)");
     expect(source).toContain('crypto.subtle.digest');
     expect(source).not.toContain('stagingJob(jobId)');
@@ -72,5 +74,15 @@ describe('server AI boundary contract', () => {
     expect(source).toContain('OPENAI_API_KEY');
     expect(source).toContain("gpt-5.6-luna");
     expect(source).toContain("gpt-image-2");
+  });
+
+  it('keeps the client production-only with no mock or local credit fallback', async () => {
+    const store = await readFile(path.resolve(process.cwd(), 'src/store/AppStore.tsx'), 'utf8');
+    const storage = await readFile(path.resolve(process.cwd(), 'src/storage/supabase.ts'), 'utf8');
+    expect(store).toContain('balance: 0');
+    expect(store).toContain('loadCreditAccount');
+    expect(store).not.toMatch(/createMock|DEMO_|grantCredits|useDemoProfile/);
+    expect(storage).toContain('wallet: _wallet');
+    expect(storage).toContain('creditTransactions: _creditTransactions');
   });
 });

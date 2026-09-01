@@ -24,7 +24,7 @@ const authStorage = Platform.OS === 'web' && typeof window === 'undefined'
   : AsyncStorage;
 
 // The client is deliberately absent until both public values exist. This keeps
-// the mock-first app usable without creating a client with invalid credentials.
+// Keep an absent configuration explicit; production actions fail closed in the provider boundary.
 export const supabase: SupabaseClient | null = supabaseConfigured
   ? createClient(url, publishableKey, {
       auth: {

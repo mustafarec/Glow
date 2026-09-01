@@ -53,7 +53,7 @@ export interface Recommendation {
   category: RecommendationCategory;
   impact: RecommendationImpact;
   tag: string;
-  imageUri: string;
+  imageUri?: string;
   explanation: string;
   creditCost: number;
   goalFit: GlowGoalId;

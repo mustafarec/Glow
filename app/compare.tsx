@@ -14,7 +14,7 @@ export default function CompareScreen() {
   const { state } = useAppStore();
   const look = state.generatedLooks.find((item) => item.id === lookId) ?? state.generatedLooks[0];
   if (!look) return <Screen><AppText variant="title">No preview to compare yet.</AppText></Screen>;
-  return <Screen><View style={styles.top}><IconButton name="chevron-back" onPress={() => router.back()} label="Go back" /><Pill>Drag to compare</Pill><View style={styles.spacer} /></View><Eyebrow>BEFORE / AFTER</Eyebrow><AppText variant="display" style={styles.title}>See the difference, your way.</AppText><AppText style={styles.subtitle}>Move the divider across the image. This mock preview keeps the chosen direction separate from any judgment.</AppText><View style={styles.slider}><BeforeAfterSlider beforeUri={look.beforeImageUri} afterUri={look.resultImageUri} height={560} /></View></Screen>;
+  return <Screen><View style={styles.top}><IconButton name="chevron-back" onPress={() => router.back()} label="Go back" /><Pill>Drag to compare</Pill><View style={styles.spacer} /></View><Eyebrow>BEFORE / AFTER</Eyebrow><AppText variant="display" style={styles.title}>See the difference, your way.</AppText><AppText style={styles.subtitle}>Move the divider across the image. This generated preview keeps the chosen direction separate from any judgment.</AppText><View style={styles.slider}><BeforeAfterSlider beforeUri={look.beforeImageUri} afterUri={look.resultImageUri} height={560} /></View></Screen>;
 }
 
 const styles = StyleSheet.create({

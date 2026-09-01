@@ -3,8 +3,7 @@ import React, { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
-import { AppText, Button, Eyebrow, GlowImage, IconButton, Pill, SectionTitle } from '@/components/ui';
-import { AI_MODE } from '@/services/ai';
+import { AppText, Button, Eyebrow, IconButton, ImagePlaceholder, Pill, SectionTitle } from '@/components/ui';
 import { useAppStore } from '@/store/AppStore';
 import { colors, radius, spacing } from '@/theme';
 
@@ -24,14 +23,21 @@ export default function RecommendationScreen() {
     setBusy(false);
     if (!result.ok) {
       if (result.reason === 'insufficient-credits') router.push('/credits');
-      else Alert.alert('Not ready yet', 'This recommendation is no longer available.');
+      else if (result.reason === 'auth-required') {
+        Alert.alert('Sign in required', 'Sign in before creating a private preview.');
+        router.push('/auth');
+      } else if (result.reason === 'missing-selfie') {
+        Alert.alert('Selfie required', 'Add and consent to a selfie before creating a private preview.');
+        router.push('/selfie');
+      } else if (result.reason === 'provider-unavailable') {
+        Alert.alert('Preview unavailable', 'Production AI could not start this preview. Your account balance was not changed unless the server confirmed a reservation.');
+      } else Alert.alert('Not ready yet', 'This recommendation is no longer available.');
       return;
     }
     router.push('/generate');
   };
 
-  const conceptLabel = AI_MODE === 'MOCK' ? 'Mock concept' : AI_MODE === 'STAGING' ? 'Staging concept' : 'AI direction';
-  return <Screen><View style={styles.top}><IconButton name="chevron-back" onPress={() => router.back()} label="Go back" /><Pill tone="dark">{recommendation.creditCost} credits</Pill></View><GlowImage uri={recommendation.imageUri} style={styles.heroImage} /><View style={styles.heroCopy}><Eyebrow style={styles.clay}>{recommendation.tag}</Eyebrow><AppText variant="display" style={styles.title}>{recommendation.title}</AppText><AppText style={styles.subtitle}>{recommendation.description}</AppText></View><View style={styles.why}><Eyebrow>WHY IT'S IN YOUR BLUEPRINT</Eyebrow><AppText variant="title">{recommendation.explanation}</AppText></View><SectionTitle>HOW IT FEELS</SectionTitle><View style={styles.tags}><Pill tone="sage">Optional</Pill><Pill tone="neutral">{conceptLabel}</Pill><Pill tone="accent">{recommendation.category.replace('-', ' ')}</Pill></View><SectionTitle>YOUR REACTION</SectionTitle><View style={styles.feedback}><Button tone={state.feedback[recommendation.id] === 'love-it' ? 'accent' : 'light'} icon="heart-outline" onPress={() => setFeedback(recommendation.id, 'love-it')}>Love it</Button><Button tone={state.feedback[recommendation.id] === 'not-for-me' ? 'dark' : 'light'} icon="close-outline" onPress={() => setFeedback(recommendation.id, 'not-for-me')}>Not for me</Button></View><Button tone="dark" icon="eye-outline" disabled={busy} onPress={generate} style={styles.cta}>{busy ? 'Preparing your preview…' : `See me · ${recommendation.creditCost} credits`}</Button><AppText variant="caption" style={styles.disclaimer}>Your credit is reserved only when generation starts. If the preview fails, it is restored automatically.</AppText></Screen>;
+  return <Screen><View style={styles.top}><IconButton name="chevron-back" onPress={() => router.back()} label="Go back" /><Pill tone="dark">{recommendation.creditCost} credits</Pill></View><ImagePlaceholder style={styles.heroImage} label="Your generated preview will appear after you choose See me." /><View style={styles.heroCopy}><Eyebrow style={styles.clay}>{recommendation.tag}</Eyebrow><AppText variant="display" style={styles.title}>{recommendation.title}</AppText><AppText style={styles.subtitle}>{recommendation.description}</AppText></View><View style={styles.why}><Eyebrow>WHY IT'S IN YOUR BLUEPRINT</Eyebrow><AppText variant="title">{recommendation.explanation}</AppText></View><SectionTitle>HOW IT FEELS</SectionTitle><View style={styles.tags}><Pill tone="sage">Optional</Pill><Pill tone="neutral">AI direction</Pill><Pill tone="accent">{recommendation.category.replace('-', ' ')}</Pill></View><SectionTitle>YOUR REACTION</SectionTitle><View style={styles.feedback}><Button tone={state.feedback[recommendation.id] === 'love-it' ? 'accent' : 'light'} icon="heart-outline" onPress={() => setFeedback(recommendation.id, 'love-it')}>Love it</Button><Button tone={state.feedback[recommendation.id] === 'not-for-me' ? 'dark' : 'light'} icon="close-outline" onPress={() => setFeedback(recommendation.id, 'not-for-me')}>Not for me</Button></View><Button tone="dark" icon="eye-outline" disabled={busy} onPress={generate} style={styles.cta}>{busy ? 'Preparing your preview…' : `See me · ${recommendation.creditCost} credits`}</Button><AppText variant="caption" style={styles.disclaimer}>Your credit is reserved only when generation starts. If the preview fails, it is restored automatically.</AppText></Screen>;
 }
 
 const styles = StyleSheet.create({

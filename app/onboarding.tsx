@@ -11,20 +11,14 @@ import { colors, radius, spacing } from '@/theme';
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { state, setOnboarding, useDemoProfile } = useAppStore();
-  const [name, setName] = useState(state.displayName === 'Maya' ? '' : state.displayName);
+  const { state, setOnboarding } = useAppStore();
+  const [name, setName] = useState(state.displayName);
   const [goal, setGoal] = useState<GlowGoalId>(state.goal);
   const [focus, setFocus] = useState<FocusId>(state.focus);
 
   const continueToSelfie = () => {
     setOnboarding(name, goal, focus);
     router.push('/selfie');
-  };
-
-  const startDemo = () => {
-    setOnboarding(name, goal, focus);
-    useDemoProfile({ displayName: name, goal, focus });
-    router.replace('/blueprint');
   };
 
   return (
@@ -36,8 +30,7 @@ export default function OnboardingScreen() {
       {GOAL_OPTIONS.slice(0, 6).map((item) => <ChoiceCard key={item.id} title={item.label} description={item.description} selected={goal === item.id} onPress={() => setGoal(item.id)} accent={item.accent} />)}
       <AppText variant="label" style={styles.fieldLabel}>WHAT MATTERS MOST RIGHT NOW?</AppText>
       <View>{FOCUS_OPTIONS.map((item) => <Pressable key={item.id} onPress={() => setFocus(item.id)} style={[styles.focusChip, focus === item.id && styles.focusChipSelected]}><View style={[styles.focusDot, focus === item.id && styles.focusDotSelected]} /><AppText style={focus === item.id ? styles.selectedText : undefined}>{item.label}</AppText></Pressable>)}</View>
-      <Button tone="dark" onPress={continueToSelfie} style={styles.continue}>Continue to selfies</Button>
-      <Button tone="quiet" onPress={startDemo}>Explore with a demo profile</Button>
+      <Button tone="dark" disabled={!name.trim()} onPress={continueToSelfie} style={styles.continue}>Continue to selfies</Button>
     </Screen>
   );
 }

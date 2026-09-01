@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { PortalHost } from '@rn-primitives/portal';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
+import '../global.css';
 
 import { AppProvider } from '@/store/AppStore';
 
@@ -38,6 +40,7 @@ export default function RootLayout() {
           <Stack.Screen name="settings" />
           <Stack.Screen name="privacy" />
         </Stack>
+        <PortalHost />
       </AppProvider>
     </SafeAreaProvider>
   );

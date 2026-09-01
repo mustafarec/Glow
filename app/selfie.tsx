@@ -11,11 +11,13 @@ import { colors, radius, spacing } from '@/theme';
 
 export default function SelfieScreen() {
   const router = useRouter();
-  const { state, addSelfie, setImageConsent, useDemoProfile } = useAppStore();
+  const { state, addSelfie, setImageConsent, uploadConsentedSelfies, useDemoProfile } = useAppStore();
   const [consented, setConsented] = useState(state.consentToUseImages);
   const [picking, setPicking] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const pickSelfie = async () => {
+    if (picking || saving) return;
     setPicking(true);
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -32,13 +34,23 @@ export default function SelfieScreen() {
     }
   };
 
-  const continueToAnalysis = () => {
+  const continueToAnalysis = async () => {
     if (!consented || !state.selfies.length) {
       Alert.alert('One clear selfie first', 'Choose a clear front-facing selfie and confirm that Glow may use it for your private styling profile.');
       return;
     }
     setImageConsent(true);
-    router.push('/analysis');
+    setSaving(true);
+    try {
+      const uploaded = await uploadConsentedSelfies();
+      if (!uploaded) {
+        Alert.alert('Could not secure your photos', 'Glow kept your selected photos on this device. Try again when you are online.');
+        return;
+      }
+      router.push('/analysis');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -46,10 +58,10 @@ export default function SelfieScreen() {
       <View style={styles.top}><IconButton name="chevron-back" onPress={() => router.back()} label="Go back" /><Pill tone="accent">Private by design</Pill></View>
       <Eyebrow>YOUR STARTING POINT</Eyebrow><AppText variant="display" style={styles.title}>Show us the real you.</AppText><AppText style={styles.subtitle}>Two or three clear angles help us suggest shape and color while keeping your identity yours.</AppText>
       <View style={styles.guidance}><View style={styles.guidanceItem}><View style={styles.check}><AppText style={styles.checkText}>✓</AppText></View><AppText>Natural light</AppText></View><View style={styles.guidanceItem}><View style={styles.check}><AppText style={styles.checkText}>✓</AppText></View><AppText>No heavy filter</AppText></View><View style={styles.guidanceItem}><View style={styles.check}><AppText style={styles.checkText}>✓</AppText></View><AppText>Face the camera</AppText></View></View>
-      <Pressable onPress={pickSelfie} style={({ pressed }) => [styles.upload, pressed && styles.pressed]}><View style={styles.uploadIcon}><AppText variant="display" style={styles.plus}>+</AppText></View><AppText variant="title">{picking ? 'Opening your photos…' : 'Add a clear selfie'}</AppText><AppText variant="caption" style={styles.muted}>Front-facing is best · up to 3 photos</AppText></Pressable>
+      <Pressable onPress={pickSelfie} style={({ pressed }) => [styles.upload, pressed && styles.pressed, saving && styles.disabled]}><View style={styles.uploadIcon}><AppText variant="display" style={styles.plus}>+</AppText></View><AppText variant="title">{picking ? 'Opening your photos…' : saving ? 'Securing your photos…' : 'Add a clear selfie'}</AppText><AppText variant="caption" style={styles.muted}>Front-facing is best · up to 3 photos</AppText></Pressable>
       {state.selfies.length ? <View style={styles.previewRow}>{state.selfies.map((selfie) => <GlowImage key={selfie.id} uri={selfie.uri} style={styles.preview} />)}</View> : <GlowImage uri={DEMO_SELFIE_URI} style={styles.demoPreview} />}
-      <Pressable onPress={() => { const next = !consented; setConsented(next); setImageConsent(next); }} style={styles.consent}><View style={[styles.checkbox, consented && styles.checkboxChecked]}>{consented ? <AppText style={styles.checkText}>✓</AppText> : null}</View><AppText variant="caption" style={styles.consentText}>I agree that Glow may use the photos I choose to create my private Glow Profile. I can delete them any time.</AppText></Pressable>
-      <Button tone="dark" icon="sparkles-outline" onPress={continueToAnalysis}>Create my blueprint</Button>
+      <Pressable disabled={saving} onPress={() => { const next = !consented; setConsented(next); setImageConsent(next); }} style={[styles.consent, saving && styles.disabled]}><View style={[styles.checkbox, consented && styles.checkboxChecked]}>{consented ? <AppText style={styles.checkText}>✓</AppText> : null}</View><AppText variant="caption" style={styles.consentText}>I agree that Glow may use the photos I choose to create my private Glow Profile. I can delete them any time.</AppText></Pressable>
+      <Button tone="dark" icon="sparkles-outline" disabled={saving} onPress={() => void continueToAnalysis}>{saving ? 'Securing your photos…' : 'Create my blueprint'}</Button>
       <ChoiceCard title="Prefer to explore first?" description="Use a demo profile with placeholder imagery" onPress={() => { useDemoProfile(); router.replace('/blueprint'); }} icon="eye-outline" />
     </Screen>
   );
@@ -75,4 +87,5 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: colors.clay, borderColor: colors.clay },
   consentText: { flex: 1 },
   pressed: { opacity: 0.8 },
+  disabled: { opacity: 0.55 },
 });

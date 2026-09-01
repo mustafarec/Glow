@@ -24,6 +24,8 @@ export interface SelfieAsset {
   uri: string;
   angle: 'front' | 'side' | 'unknown';
   createdAt: string;
+  storagePath?: string;
+  consentedAt?: string;
 }
 
 export interface GlowProfile {

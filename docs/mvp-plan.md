@@ -34,16 +34,16 @@ Feature limits and generation costs are configuration, not screen constants. Fre
 - Email magic links, Apple/Google OAuth launch, callback handling, sign-out, and auth-change rehydration are wired through `src/services/auth.ts`.
 - Guest state and signed-in state use separate scopes. A stale account load cannot overwrite a newer account because hydration is generation-guarded.
 - `0002_identity_state_snapshot.sql` adds a transitional user-owned JSON snapshot with RLS. The adapter falls back to the signed-in user's local cache when remote persistence is unavailable.
-- Remote snapshots exclude local/data image URIs and in-flight jobs. The existing migration already defines the private `glow-selfies` bucket and owner-scoped Storage policies; signed-URL client usage and normalized-row synchronization are the next slice.
+- Remote snapshots exclude local/data image URIs and in-flight jobs. After explicit consent, the private media adapter uploads selfie bytes through owner-scoped paths, creates signed URLs, persists `public.selfies` metadata, refreshes URLs on hydrate, and removes owned objects/rows during delete-all.
 - Live checks against the configured Supabase project passed for Auth, owner/non-owner snapshot RLS, and private Storage ownership/signed URLs. Ephemeral test users, rows, and objects were removed afterward. Keys stay outside the repository; the SQL contract is covered by tests.
 
 ## Next implementation slice
 
-The next slice is private media access, not real AI or billing:
+The next slice is server-side AI orchestration, not client-side provider access:
 
-1. Apply and verify the existing schema, table RLS, and private Storage policies in a development Supabase project.
-2. Add signed-URL upload/download/delete calls through the existing storage boundary without putting secret keys in the Expo bundle.
-3. Persist consent and storage paths, then verify owner isolation and delete-all-data behavior.
-4. Keep mock mode and the current screen flow working while the live adapter is introduced.
+1. Add an authenticated Edge Function boundary for analysis and generation requests.
+2. Persist provider job ids and the existing `queued → processing → completed|failed` lifecycle server-side.
+3. Keep provider keys, retries, refunds, and rate limits out of the Expo bundle.
+4. Keep mock mode, consent-gated media, and the current screen flow working while the server adapter is introduced.
 
 The AI and billing adapters remain explicit follow-up slices. They should not be added as client-side shortcuts because the Archify map treats those services as production security boundaries.

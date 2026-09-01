@@ -18,6 +18,7 @@ import { aiProvider } from '@/services/ai';
 import { track } from '@/services/analytics';
 import { AuthActionResult, AuthProvider, AuthSnapshot, getCurrentAuthSnapshot, getInitialAuthSnapshot, requestMagicLink, signInWithProvider, signOutCurrentUser, subscribeToAuthChanges } from '@/services/auth';
 import { supabase, supabaseConfigured } from '@/services/supabase';
+import { SupabaseMediaStorage } from '@/storage/media';
 import { createStateStorage, StorageScope } from '@/storage/persistence';
 
 const id = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -80,6 +81,7 @@ interface AppStoreValue {
   setOnboarding: (displayName: string, goal: GlowGoalId, focus: AppState['focus']) => void;
   addSelfie: (uri: string, angle?: 'front' | 'side' | 'unknown') => void;
   setImageConsent: (allowed: boolean) => void;
+  uploadConsentedSelfies: () => Promise<boolean>;
   useDemoProfile: (overrides?: Partial<Pick<AppState, 'displayName' | 'goal' | 'focus'>>) => void;
   runAnalysis: () => Promise<void>;
   setGoal: (goal: GlowGoalId) => Promise<void>;
@@ -102,6 +104,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [auth, setAuth] = useState<AuthSnapshot>(getInitialAuthSnapshot);
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
   const storage = useMemo(() => createStateStorage(supabase), []);
+  const mediaStorage = useMemo(() => (supabase ? new SupabaseMediaStorage(supabase) : null), []);
   const scopeRef = useRef<StorageScope>(null);
   const hydrationGenerationRef = useRef(0);
   const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -126,6 +129,9 @@ export function AppProvider({ children }: PropsWithChildren) {
     let saved: Partial<AppState> | null = null;
     try {
       saved = await storage.load(nextAuth.userId);
+      if (nextAuth.userId && mediaStorage && saved?.selfies?.length) {
+        saved = { ...saved, selfies: await mediaStorage.refreshSignedUrls(nextAuth.userId, saved.selfies) };
+      }
     } catch {
       // The local cache is still the safe fallback if a storage adapter fails.
     }
@@ -137,7 +143,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     setAuthReady(true);
     setHydrated(true);
     track('app_open', { mode: nextAuth.userId ? 'supabase' : supabaseConfigured ? 'guest' : 'mock' });
-  }, [storage]);
+  }, [mediaStorage, storage]);
 
   useEffect(() => {
     let active = true;
@@ -190,6 +196,24 @@ export function AppProvider({ children }: PropsWithChildren) {
   const setImageConsent = useCallback((allowed: boolean) => {
     updateState((current) => ({ ...current, consentToUseImages: allowed }));
   }, [updateState]);
+
+  const uploadConsentedSelfies = useCallback(async (): Promise<boolean> => {
+    const scope = scopeRef.current;
+    if (!scope || !mediaStorage) return true;
+
+    const current = stateRef.current;
+    const pending = current.selfies.filter((selfie) => !selfie.storagePath && !/^https?:\/\//i.test(selfie.uri));
+    if (!pending.length) return true;
+
+    try {
+      const uploaded = await mediaStorage.uploadSelfies(scope, pending, new Date().toISOString());
+      const uploadedById = new Map(uploaded.map((selfie) => [selfie.id, selfie]));
+      updateState((next) => ({ ...next, selfies: next.selfies.map((selfie) => uploadedById.get(selfie.id) ?? selfie) }));
+      return true;
+    } catch {
+      return false;
+    }
+  }, [mediaStorage, updateState]);
 
   const useDemoProfile = useCallback((overrides: Partial<Pick<AppState, 'displayName' | 'goal' | 'focus'>> = {}) => {
     const current = { ...stateRef.current, ...overrides };
@@ -346,6 +370,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const deleteAllData = useCallback(async () => {
     const scope = scopeRef.current;
+    if (scope && mediaStorage) await mediaStorage.clear(scope);
     hydrationGenerationRef.current += 1;
     setHydrated(false);
     await storage.clear(scope);
@@ -368,6 +393,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     setOnboarding,
     addSelfie,
     setImageConsent,
+    uploadConsentedSelfies,
     useDemoProfile,
     runAnalysis,
     setGoal,
@@ -379,7 +405,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     purchaseCredits,
     activateSubscription,
     deleteAllData,
-  }), [state, hydrated, auth, authReady, setOnboarding, addSelfie, setImageConsent, useDemoProfile, runAnalysis, setGoal, setFeedback, startGeneration, saveLook, toggleFavorite, addTimelineEntry, purchaseCredits, activateSubscription, deleteAllData]);
+  }), [state, hydrated, auth, authReady, setOnboarding, addSelfie, setImageConsent, uploadConsentedSelfies, useDemoProfile, runAnalysis, setGoal, setFeedback, startGeneration, saveLook, toggleFavorite, addTimelineEntry, purchaseCredits, activateSubscription, deleteAllData]);
 
   return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;
 }

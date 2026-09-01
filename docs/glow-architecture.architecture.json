@@ -74,9 +74,18 @@
       "id": "supabase",
       "type": "cloud",
       "label": "Supabase backend",
-      "sublabel": "Auth · state snapshot · RLS",
-      "tag": "current slice",
+      "sublabel": "Auth · state · RLS · media",
+      "tag": "current slices",
       "pos": [980, 560],
+      "size": [210, 70]
+    },
+    {
+      "id": "media-adapter",
+      "type": "backend",
+      "label": "Private media adapter",
+      "sublabel": "ArrayBuffer · signed URL",
+      "tag": "implemented",
+      "pos": [730, 330],
       "size": [210, 70]
     },
     {
@@ -102,7 +111,7 @@
     {
       "kind": "region",
       "label": "Glow mobile client — implemented MVP",
-      "wraps": ["ui", "store", "domain", "ai-adapter", "device-media", "local-store"]
+      "wraps": ["ui", "store", "domain", "ai-adapter", "device-media", "local-store", "media-adapter"]
     }
   ],
   "connections": [
@@ -149,6 +158,24 @@
     },
     {
       "from": "store",
+      "to": "media-adapter",
+      "label": "consented upload / delete-all",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [700, 314]
+    },
+    {
+      "from": "media-adapter",
+      "to": "supabase",
+      "label": "private object + selfie row",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [900, 500]
+    },
+    {
+      "from": "store",
       "to": "local-store",
       "label": "guest hydrate / persist",
       "variant": "dashed",
@@ -172,7 +199,7 @@
       "variant": "dashed",
       "fromSide": "bottom",
       "toSide": "top",
-      "labelAt": [1030, 500]
+      "labelAt": [1180, 500]
     },
     {
       "from": "billing",
@@ -191,6 +218,7 @@
       "items": [
         "Expo Router owns the mobile-first screen flow.",
         "AppStore coordinates consent, analysis, credits, generation jobs, saving, and timeline state.",
+        "Consent-gated private media uses user-scoped paths, signed URLs, and selfie metadata.",
         "AsyncStorage and MockAIProvider keep the MVP runnable without backend credentials."
       ]
     },
@@ -198,8 +226,8 @@
       "dot": "amber",
       "title": "Production gates",
       "items": [
-        "Current slice: connect Supabase Auth, a user-scoped state snapshot, and RLS.",
-        "Next: move AI provider calls, private selfie storage, billing verification, and webhook secrets behind server-side boundaries.",
+        "Current slices: Supabase Auth, snapshot/RLS, and consent-gated private media.",
+        "Next: move AI provider calls, billing verification, and webhook secrets behind server-side boundaries.",
         "Keep EXPO_PUBLIC_* limited to non-secret client configuration."
       ]
     },

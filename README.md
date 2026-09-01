@@ -2,7 +2,7 @@
 
 Glow is a mobile-first, English-first AI styling assistant built around a persistent Personal Glow Profile.
 
-The first release is mock-first so the full onboarding-to-visualization flow can be run without paid AI or payment credentials. Supabase Auth and a user-scoped state snapshot adapter are now available behind the store boundary; private media, server-side AI and store billing remain later production slices.
+The first release is mock-first so the full onboarding-to-visualization flow can be run without paid AI or payment credentials. Supabase Auth, user-scoped snapshots, and consent-gated private selfie media are available behind the store boundary; server-side AI and store billing remain later production slices.
 
 ## Run
 
@@ -21,13 +21,13 @@ For a browser preview use `npm run web`. Use `npm run typecheck` and `npm test` 
 4. Open a recommendation and generate a mock preview.
 5. Compare, save, favorite, and share a look.
 
-The app never assigns beauty or attractiveness scores and never sends raw images to analytics. Guest mode uses AsyncStorage; authenticated mode syncs a sanitized state snapshot through Supabase RLS and keeps a per-user offline cache. Local file/data image URIs are not sent to that snapshot. The production schema and RLS policies live in `supabase/migrations`.
+The app never assigns beauty or attractiveness scores and never sends raw images to analytics. Guest mode uses AsyncStorage; authenticated mode syncs a sanitized state snapshot through Supabase RLS and keeps a per-user offline cache. Selected images remain local until explicit consent, then upload to the private `glow-selfies` bucket through user-scoped paths and signed URLs; local file/data image URIs are not sent to the snapshot. The production schema and RLS policies live in `supabase/migrations`.
 
 ## Architecture
 
 - `src/domain`: types, profile/recommendation rules, credits, entitlements, and job state.
 - `src/services`: provider interfaces, mock implementations, Supabase client, and Auth boundary.
-- `src/storage`: guest/user-scoped local persistence and the Supabase snapshot adapter.
+- `src/storage`: guest/user-scoped persistence, the Supabase snapshot adapter, and the consent-gated private media adapter.
 - `src/store`: one small authenticated, persisted app store used by the screens.
 - `app`: Expo Router stack, tab, and focused product routes.
 - `src/components`: reusable visual primitives, not one dashboard component.

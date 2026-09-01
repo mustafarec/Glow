@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Glow — Consent-Gated Private Selfie Media",
+    "output": "docs/glow-selfie-media.sequence.html",
+    "viewBox": [1040, 650],
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "consent-and-upload",
+        "label": "Consent then upload",
+        "focus": ["client", "appstore", "media", "auth", "policy", "storage"],
+        "note": "A selected local URI stays local until the user explicitly consents to image use."
+      },
+      {
+        "id": "metadata-persistence",
+        "label": "Persist the owner row",
+        "focus": ["media", "policy", "metadata", "storage"],
+        "note": "The private object and owner-scoped metadata are linked by storage_path."
+      },
+      {
+        "id": "deletion-boundary",
+        "label": "Delete the whole boundary",
+        "focus": ["client", "appstore", "media", "policy", "storage", "metadata"],
+        "note": "The clear operation removes private media and rows before local state is cleared."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "Glow UI", "sublabel": "selfie + privacy" },
+    { "id": "appstore", "type": "frontend", "label": "AppStore", "sublabel": "consent + scope" },
+    { "id": "media", "type": "frontend", "label": "Media Adapter", "sublabel": "signed URL boundary" },
+    { "id": "auth", "type": "cloud", "label": "Supabase Auth", "sublabel": "current session" },
+    { "id": "policy", "type": "security", "label": "RLS Policy", "sublabel": "auth.uid() owner" },
+    { "id": "storage", "type": "cloud", "label": "Private Storage", "sublabel": "glow-selfies" },
+    { "id": "metadata", "type": "database", "label": "Selfie Metadata", "sublabel": "public.selfies" }
+  ],
+  "segments": [
+    { "from": 150, "to": 242, "label": "1. Consent + upload" },
+    { "from": 258, "to": 402, "label": "2. Sign + persist" },
+    { "from": 410, "to": 560, "label": "3. Delete boundary" }
+  ],
+  "messages": [
+    { "from": "client", "to": "appstore", "y": 160, "label": "Confirm image consent", "variant": "emphasis" },
+    { "from": "appstore", "to": "media", "y": 190, "label": "uploadConsentedSelfies(userId, URI)", "variant": "emphasis" },
+    { "from": "media", "to": "auth", "y": 220, "label": "Verify existing session + scope", "variant": "security" },
+    { "from": "media", "to": "policy", "y": 250, "label": "Upload userId/object.ext", "variant": "security" },
+    { "from": "policy", "to": "storage", "y": 280, "label": "Owner-path insert", "variant": "security" },
+    { "from": "storage", "to": "media", "y": 310, "label": "Object stored", "variant": "return" },
+    { "from": "media", "to": "storage", "y": 340, "label": "createSignedUrl(path)", "variant": "security" },
+    { "from": "storage", "to": "media", "y": 370, "label": "Signed URL (1 hour)", "variant": "return" },
+    { "from": "media", "to": "policy", "y": 400, "label": "Persist path + consented_at", "variant": "security" },
+    { "from": "policy", "to": "metadata", "y": 430, "label": "Owner-scoped selfie row", "variant": "security" },
+    { "from": "metadata", "to": "media", "y": 460, "label": "Selfie id + created_at", "variant": "return" },
+    { "from": "media", "to": "appstore", "y": 490, "label": "SelfieAsset(URL + path)", "variant": "return" },
+    { "from": "client", "to": "appstore", "y": 520, "label": "deleteAllData()", "variant": "emphasis" },
+    { "from": "appstore", "to": "media", "y": 550, "label": "Clear objects + rows, then local state", "variant": "security" }
+  ],
+  "activations": [
+    { "participant": "appstore", "from": 184, "to": 198, "type": "frontend" },
+    { "participant": "media", "from": 184, "to": 496, "type": "frontend" },
+    { "participant": "auth", "from": 214, "to": 226, "type": "cloud" },
+    { "participant": "policy", "from": 244, "to": 556, "type": "security" },
+    { "participant": "storage", "from": 274, "to": 316, "type": "cloud" },
+    { "participant": "storage", "from": 334, "to": 376, "type": "cloud" },
+    { "participant": "metadata", "from": 424, "to": 466, "type": "database" }
+  ]
+}

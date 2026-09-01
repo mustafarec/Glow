@@ -41,6 +41,9 @@ yarn-error.*
 # local tooling checkout
 /tools/archify/
 
+# local IDE metadata
+/.idea/
+
 # Supabase CLI local metadata
 /supabase/.temp/
 

@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Glow — MVP to production architecture",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1380, 700]
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "Glow user",
+      "sublabel": "intent · consent",
+      "pos": [40, 330],
+      "size": [150, 70]
+    },
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Expo app",
+      "sublabel": "Expo Router screens",
+      "tag": "implemented",
+      "pos": [240, 330],
+      "size": [180, 70]
+    },
+    {
+      "id": "store",
+      "type": "backend",
+      "label": "AppStore",
+      "sublabel": "state + flow orchestration",
+      "tag": "implemented",
+      "pos": [480, 330],
+      "size": [190, 70]
+    },
+    {
+      "id": "domain",
+      "type": "backend",
+      "label": "Domain core",
+      "sublabel": "profile · credits · entitlements",
+      "tag": "implemented",
+      "pos": [730, 520],
+      "size": [190, 70]
+    },
+    {
+      "id": "ai-adapter",
+      "type": "backend",
+      "label": "AI provider adapter",
+      "sublabel": "analyze · generate",
+      "tag": "mock-first",
+      "pos": [980, 330],
+      "size": [210, 70]
+    },
+    {
+      "id": "device-media",
+      "type": "external",
+      "label": "Device media",
+      "sublabel": "camera / photo library URI",
+      "tag": "consent-gated",
+      "pos": [240, 560],
+      "size": [180, 70]
+    },
+    {
+      "id": "local-store",
+      "type": "database",
+      "label": "AsyncStorage",
+      "sublabel": "guest + offline persistence",
+      "tag": "implemented",
+      "pos": [480, 560],
+      "size": [190, 70]
+    },
+    {
+      "id": "supabase",
+      "type": "cloud",
+      "label": "Supabase backend",
+      "sublabel": "Auth · state snapshot · RLS",
+      "tag": "current slice",
+      "pos": [980, 560],
+      "size": [210, 70]
+    },
+    {
+      "id": "ai-services",
+      "type": "external",
+      "label": "AI services",
+      "sublabel": "server-side API",
+      "tag": "planned",
+      "pos": [1220, 330],
+      "size": [160, 70]
+    },
+    {
+      "id": "billing",
+      "type": "external",
+      "label": "App Store billing",
+      "sublabel": "purchases · webhooks",
+      "tag": "planned",
+      "pos": [1215, 560],
+      "size": [160, 70]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Glow mobile client — implemented MVP",
+      "wraps": ["ui", "store", "domain", "ai-adapter", "device-media", "local-store"]
+    }
+  ],
+  "connections": [
+    {
+      "from": "user",
+      "to": "ui",
+      "label": "intent + feedback",
+      "variant": "emphasis",
+      "labelAt": [215, 414]
+    },
+    {
+      "from": "device-media",
+      "to": "ui",
+      "label": "selected photo URI",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [330, 470]
+    },
+    {
+      "from": "ui",
+      "to": "store",
+      "label": "screen actions",
+      "variant": "emphasis",
+      "labelAt": [450, 414]
+    },
+    {
+      "from": "store",
+      "to": "domain",
+      "label": "pure decisions",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "store",
+      "to": "ai-adapter",
+      "label": "analyze / recommend / generate",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [[575, 250], [1085, 250]],
+      "labelAt": [825, 235]
+    },
+    {
+      "from": "store",
+      "to": "local-store",
+      "label": "guest hydrate / persist",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [450, 440]
+    },
+    {
+      "from": "ai-adapter",
+      "to": "ai-services",
+      "label": "replace mock with server adapter",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [1205, 414]
+    },
+    {
+      "from": "store",
+      "to": "supabase",
+      "label": "user-scoped state sync",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [1030, 500]
+    },
+    {
+      "from": "billing",
+      "to": "supabase",
+      "label": "purchase verification",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right",
+      "labelAt": [1270, 540]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Implemented now",
+      "items": [
+        "Expo Router owns the mobile-first screen flow.",
+        "AppStore coordinates consent, analysis, credits, generation jobs, saving, and timeline state.",
+        "AsyncStorage and MockAIProvider keep the MVP runnable without backend credentials."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Production gates",
+      "items": [
+        "Current slice: connect Supabase Auth, a user-scoped state snapshot, and RLS.",
+        "Next: move AI provider calls, private selfie storage, billing verification, and webhook secrets behind server-side boundaries.",
+        "Keep EXPO_PUBLIC_* limited to non-secret client configuration."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Product safety invariants",
+      "items": [
+        "Selfie use is explicit and consent-gated; adding a photo must not imply consent.",
+        "The experience provides supportive, actionable guidance and never an attractiveness score.",
+        "Every async generation path needs visible progress, failure recovery, and exactly-once credit settlement."
+      ]
+    }
+  ]
+}

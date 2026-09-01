@@ -6,8 +6,10 @@ The checked Archify source and its standalone interactive map are the visual sou
 
 - [Archify source](./glow-architecture.architecture.json)
 - [Interactive architecture map](./glow-architecture.html)
+- [Supabase boundary sequence source](./glow-supabase-boundary.sequence.json)
+- [Interactive Supabase boundary sequence](./glow-supabase-boundary.sequence.html)
 
-The map deliberately distinguishes implemented components (`implemented`, `mock-first`) from production work (`planned`). The current Supabase Auth and snapshot/RLS seam is implemented; private media, external AI, and App Store billing remain planned.
+The maps deliberately distinguish implemented components (`implemented`, `mock-first`) from production work (`planned`). The current Supabase Auth and snapshot/RLS seam is implemented; private media signed-URL usage, external AI, and App Store billing remain planned.
 
 ## Existing repository
 
@@ -29,7 +31,7 @@ The repository was empty at the start of implementation: no source files, packag
 - `AppStore` remains the application-flow coordinator. It may call domain functions and provider interfaces, but domain rules stay framework-free.
 - `AsyncStorage` is a temporary local guest/offline-cache adapter. It is not a production boundary for secrets or shared user data.
 - The AI adapter remains mock-first until a server-side provider contract, job persistence, timeout policy, and failure/refund behavior are verified together.
-- Supabase Auth and the user-scoped snapshot/RLS seam are implemented in the current slice; the normalized tables, signed URLs, and private-media adapter remain the production data boundary to finish next.
+- Supabase Auth and the user-scoped snapshot/RLS seam are implemented in the current slice; the normalized tables and private Storage policies exist in the migration, while signed-URL client usage remains the next production boundary.
 - Billing is an external verification boundary. The mobile client may request a purchase, but entitlement truth must come from verified store receipts/webhooks.
 
 ## Implementation order after the mock MVP

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Glow Supabase Kimlik ve Özel Medya Sınırı",
+    "output": "docs/glow-supabase-boundary.sequence.html",
+    "viewBox": [1040, 650],
+    "column_fit": "spread",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "glow-client", "type": "frontend", "label": "Glow Client", "sublabel": "Expo mobile app" },
+    { "id": "supabase-auth", "type": "cloud", "label": "Supabase Auth", "sublabel": "session service" },
+    { "id": "app-store", "type": "frontend", "label": "AppStore", "sublabel": "scope coordinator" },
+    { "id": "rls", "type": "security", "label": "RLS Policy", "sublabel": "auth.uid() boundary" },
+    { "id": "snapshot-db", "type": "database", "label": "Snapshot DB", "sublabel": "app_state_snapshots" },
+    { "id": "private-storage", "type": "cloud", "label": "Private Storage", "sublabel": "next slice" }
+  ],
+  "segments": [
+    { "from": 150, "to": 240, "label": "1. Kimlik ve kapsam" },
+    { "from": 248, "to": 478, "label": "2. Sanitized snapshot sync" },
+    { "from": 486, "to": 560, "label": "3. Sonraki özel medya dilimi" }
+  ],
+  "messages": [
+    { "id": "auth-request", "from": "glow-client", "to": "supabase-auth", "y": 160, "label": "Magic link / OAuth isteği", "variant": "emphasis" },
+    { "id": "auth-session", "from": "supabase-auth", "to": "glow-client", "y": 190, "label": "Callback + session", "variant": "return" },
+    { "id": "auth-scope", "from": "glow-client", "to": "app-store", "y": 220, "label": "onAuthStateChange(userId)", "variant": "emphasis" },
+    { "id": "snapshot-read", "from": "app-store", "to": "rls", "y": 250, "label": "SELECT user-scoped snapshot", "variant": "security" },
+    { "id": "snapshot-read-check", "from": "rls", "to": "snapshot-db", "y": 280, "label": "auth.uid() = user_id", "variant": "security" },
+    { "id": "snapshot-read-result", "from": "snapshot-db", "to": "rls", "y": 310, "label": "state / empty", "variant": "return" },
+    { "id": "snapshot-hydrate", "from": "rls", "to": "app-store", "y": 340, "label": "hydrate scoped state", "variant": "return" },
+    { "id": "snapshot-write", "from": "app-store", "to": "rls", "y": 370, "label": "UPSERT sanitized JSON state", "variant": "security", "note": "Local/data image URI'leri ve in-flight job'lar çıkarılır." },
+    { "id": "snapshot-write-check", "from": "rls", "to": "snapshot-db", "y": 400, "label": "owner-only write", "variant": "security" },
+    { "id": "snapshot-written", "from": "snapshot-db", "to": "rls", "y": 430, "label": "updated_at", "variant": "return" },
+    { "id": "snapshot-ack", "from": "rls", "to": "app-store", "y": 460, "label": "save acknowledged", "variant": "return" },
+    { "id": "signed-url-request", "from": "app-store", "to": "private-storage", "y": 490, "label": "Request signed URL", "variant": "dashed", "note": "Planlanan: user-owned private selfie object." },
+    { "id": "signed-url-result", "from": "private-storage", "to": "app-store", "y": 520, "label": "Signed URL + storage path", "variant": "dashed" },
+    { "id": "private-delete", "from": "app-store", "to": "private-storage", "y": 550, "label": "Delete owned object", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "supabase-auth", "from": 154, "to": 196, "type": "cloud" },
+    { "participant": "app-store", "from": 214, "to": 470, "type": "frontend" },
+    { "participant": "rls", "from": 244, "to": 468, "type": "security" },
+    { "participant": "snapshot-db", "from": 274, "to": 436, "type": "database" },
+    { "participant": "private-storage", "from": 484, "to": 528, "type": "cloud" }
+  ]
+}

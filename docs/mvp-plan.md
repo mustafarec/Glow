@@ -34,17 +34,16 @@ Feature limits and generation costs are configuration, not screen constants. Fre
 - Email magic links, Apple/Google OAuth launch, callback handling, sign-out, and auth-change rehydration are wired through `src/services/auth.ts`.
 - Guest state and signed-in state use separate scopes. A stale account load cannot overwrite a newer account because hydration is generation-guarded.
 - `0002_identity_state_snapshot.sql` adds a transitional user-owned JSON snapshot with RLS. The adapter falls back to the signed-in user's local cache when remote persistence is unavailable.
-- Remote snapshots exclude local/data image URIs and in-flight jobs. Private Supabase Storage and normalized-row synchronization are intentionally the next slice.
-- This workspace has no configured Supabase project or CLI credentials, so migration execution and owner/non-owner live RLS checks are still pending; the SQL contract is covered by tests.
+- Remote snapshots exclude local/data image URIs and in-flight jobs. The existing migration already defines the private `glow-selfies` bucket and owner-scoped Storage policies; signed-URL client usage and normalized-row synchronization are the next slice.
+- Live migration and owner/non-owner RLS checks are ready to run once the Supabase project URL is supplied. Keys stay outside the repository; the SQL contract is covered by tests.
 
 ## Next implementation slice
 
-The next slice is the identity and data perimeter, not real AI or billing:
+The next slice is private media access, not real AI or billing:
 
-1. Define the authenticated session boundary and a storage interface that can switch between the current local adapter and Supabase.
-2. Add the Supabase client with public configuration only; keep service-role and provider keys server-side.
-3. Apply and verify the existing schema/RLS migration in a development Supabase project, including owner isolation and private selfie storage.
-4. Rehydrate `AppStore` from the authenticated user without changing the screen-level flow or mock mode.
-5. Add tests for sign-out, account switching, delete-all-data, RLS ownership, and a failed generation refund after persistence is remote.
+1. Apply and verify the existing schema, table RLS, and private Storage policies in a development Supabase project.
+2. Add signed-URL upload/download/delete calls through the existing storage boundary without putting secret keys in the Expo bundle.
+3. Persist consent and storage paths, then verify owner isolation and delete-all-data behavior.
+4. Keep mock mode and the current screen flow working while the live adapter is introduced.
 
 The AI and billing adapters remain explicit follow-up slices. They should not be added as client-side shortcuts because the Archify map treats those services as production security boundaries.

@@ -31,12 +31,12 @@ The repository was empty at the start of implementation: no source files, packag
 - `AppStore` remains the application-flow coordinator. It may call domain functions and provider interfaces, but domain rules stay framework-free.
 - `AsyncStorage` is a temporary local guest/offline-cache adapter. It is not a production boundary for secrets or shared user data.
 - The AI adapter remains mock-first until a server-side provider contract, job persistence, timeout policy, and failure/refund behavior are verified together.
-- Supabase Auth and the user-scoped snapshot/RLS seam are implemented in the current slice; the normalized tables and private Storage policies exist in the migration, while signed-URL client usage remains the next production boundary.
+- Supabase Auth and the user-scoped snapshot/RLS seam are implemented and live-verified in the configured development project; the normalized tables and private Storage policies exist in the migration, while signed-URL client usage remains the next production boundary.
 - Billing is an external verification boundary. The mobile client may request a purchase, but entitlement truth must come from verified store receipts/webhooks.
 
 ## Implementation order after the mock MVP
 
-1. **Current slice:** Add an authenticated session and a Supabase-backed persistence adapter behind the existing store boundary. The migration and static RLS contract are in place; apply it and verify RLS with a non-owner/owner test pair once a development project is configured.
+1. **Current slice:** Add an authenticated session and a Supabase-backed persistence adapter behind the existing store boundary. The migration and static RLS contract are in place, and live owner/non-owner checks have passed in the configured development project.
 2. Move analysis and generation calls behind server-side functions. Keep provider keys and job orchestration out of the Expo bundle; preserve the existing `queued → processing → completed|failed` lifecycle.
 3. Add private selfie upload/download through signed URLs, explicit consent records, deletion, and cleanup of failed or abandoned jobs.
 4. Add store billing receipt verification and webhook reconciliation. Drive `Glow+` and credit balances from verified entitlements, not client-supplied values.

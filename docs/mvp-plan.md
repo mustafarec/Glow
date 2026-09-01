@@ -35,7 +35,7 @@ Feature limits and generation costs are configuration, not screen constants. Fre
 - Guest state and signed-in state use separate scopes. A stale account load cannot overwrite a newer account because hydration is generation-guarded.
 - `0002_identity_state_snapshot.sql` adds a transitional user-owned JSON snapshot with RLS. The adapter falls back to the signed-in user's local cache when remote persistence is unavailable.
 - Remote snapshots exclude local/data image URIs and in-flight jobs. The existing migration already defines the private `glow-selfies` bucket and owner-scoped Storage policies; signed-URL client usage and normalized-row synchronization are the next slice.
-- Live migration and owner/non-owner RLS checks are ready to run once the Supabase project URL is supplied. Keys stay outside the repository; the SQL contract is covered by tests.
+- Live checks against the configured Supabase project passed for Auth, owner/non-owner snapshot RLS, and private Storage ownership/signed URLs. Ephemeral test users, rows, and objects were removed afterward. Keys stay outside the repository; the SQL contract is covered by tests.
 
 ## Next implementation slice
 

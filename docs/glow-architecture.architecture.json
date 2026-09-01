@@ -56,8 +56,8 @@
       "id": "ai-function",
       "type": "backend",
       "label": "Supabase Edge Function",
-      "sublabel": "auth · jobs · request contract",
-      "tag": "durable staging",
+      "sublabel": "auth · jobs · production AI",
+      "tag": "production",
       "pos": [960, 100],
       "size": [210, 70]
     },
@@ -100,9 +100,9 @@
     {
       "id": "ai-services",
       "type": "external",
-      "label": "AI services",
-      "sublabel": "provider API · server key",
-      "tag": "next provider",
+      "label": "OpenAI services",
+      "sublabel": "gpt-5.6-luna · gpt-image-2",
+      "tag": "server-side",
       "pos": [1200, 100],
       "size": [160, 70]
     },
@@ -250,18 +250,18 @@
       "dot": "cyan",
       "title": "Implemented now",
       "items": [
-        "Expo Router owns the mobile-first screen flow.",
-        "AppStore coordinates consent, analysis, credits, generation jobs, saving, and timeline state.",
-        "Consent-gated private media uses user-scoped paths, signed URLs, and selfie metadata.",
-        "AsyncStorage and MockAIProvider keep the MVP runnable without backend credentials."
+        "Expo Router owns the mobile-first flow.",
+        "AppStore coordinates consent, AI, credits, jobs, saving, and timeline state.",
+        "Consent-gated private media uses owner paths, signed URLs, and selfie metadata.",
+        "AsyncStorage + MockAIProvider keep local mode available without backend credentials."
       ]
     },
     {
       "dot": "amber",
       "title": "Production gates",
       "items": [
-        "Current slices: Supabase Auth, snapshot/RLS, private media, and durable generation_jobs.",
-        "Next: connect a real AI provider and add billing/webhook verification.",
+        "Supabase Auth, snapshot/RLS, private media, production AI, and durable jobs are live.",
+        "Next: authoritative credits, billing/webhook verification, and provider hardening.",
         "Keep EXPO_PUBLIC_* limited to non-secret client configuration."
       ]
     },
@@ -269,9 +269,9 @@
       "dot": "rose",
       "title": "Product safety invariants",
       "items": [
-        "Selfie use is explicit and consent-gated; adding a photo must not imply consent.",
-        "The experience provides supportive, actionable guidance and never an attractiveness score.",
-        "Every async generation path needs visible progress, failure recovery, and exactly-once credit settlement."
+        "Selfie use is explicit and consent-gated.",
+        "Guidance is supportive; Glow never scores attractiveness.",
+        "Every generation needs visible progress, recovery, and exactly-once settlement."
       ]
     }
   ]

@@ -2,7 +2,7 @@
 
 ## Product slice
 
-The shippable slice is onboarding → selfie guidance/upload → mock analysis → Glow Blueprint → ranked recommendations → credit-aware mock generation → before/after result → save/share. Home, Try, Timeline, Profile, Glow Goal, Paywall, Credits, purchase history, settings, and privacy/delete-data are reachable from the same shell.
+The shippable slice is onboarding → selfie guidance/upload → mode-gated AI analysis → Glow Blueprint → ranked recommendations → credit-aware generation (mock or production provider) → before/after result → save/share. Home, Try, Timeline, Profile, Glow Goal, Paywall, Credits, purchase history, settings, and privacy/delete-data are reachable from the same shell.
 
 ## Data model
 
@@ -26,7 +26,7 @@ Feature limits and generation costs are configuration, not screen constants. Fre
 2. Typecheck and run pure domain tests.
 3. Run the Expo web bundle to catch navigation/render errors.
 4. Smoke the primary flow in the browser or simulator.
-5. Only then connect the remaining real AI provider and App Store billing adapters. Auth, private media, and the staging AI boundary are already connected behind the store boundary.
+5. Harden the connected production AI provider and add App Store billing adapters. Auth, private media, and the production AI boundary are already connected behind the store boundary.
 
 ## Identity/data-perimeter slice status
 
@@ -39,10 +39,10 @@ Feature limits and generation costs are configuration, not screen constants. Fre
 
 ## Next implementation slice
 
-The server-side AI boundary is now present in staging; its next hardening slice is:
+The server-side AI boundary is now live in production; its next hardening slice is:
 
-1. **Completed in staging:** Persist provider job ids and the existing `queued → processing → completed|failed` lifecycle server-side with owner-scoped reads and deterministic retry convergence.
-2. Connect a real provider with timeout, retry, authoritative refund, and rate-limit policy.
+1. **Completed in production:** Persist provider tracking ids and the existing `queued → processing → completed|failed` lifecycle server-side with owner-scoped reads and deterministic retry convergence.
+2. Harden the connected provider with timeout, retry, authoritative refund, and rate-limit policy.
 3. Keep provider keys, retries, refunds, and rate limits out of the Expo bundle.
 4. Keep mock mode, consent-gated media, and the current screen flow working while the server adapter evolves.
 

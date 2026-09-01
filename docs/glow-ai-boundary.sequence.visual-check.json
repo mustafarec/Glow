@@ -6,9 +6,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "C:\\Users\\USER\\OneDrive\\Desktop\\Projects\\Glow\\docs\\glow-ai-boundary.sequence.html",
-    "sha256": "a1c1e0fbe8643cf4cb228b0a374e09fb60492cdaeccb7fc123ca87a64e712e04",
-    "bytes": 731885
+    "path": "C:\\Glow\\docs\\glow-ai-boundary.sequence.html",
+    "sha256": "1d05bebce4be43fd78b5ee499bea1a6d20c87e8bc4a41898ada1bf7feee518b7",
+    "bytes": 733095
   },
   "state": {
     "detail": "read",

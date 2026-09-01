@@ -2,7 +2,7 @@
 
 ## Architecture map
 
-The checked Archify source and its standalone interactive map are the visual source of truth for the current MVP boundary and the planned production boundaries:
+The checked Archify sources and their standalone interactive maps are the visual source of truth for the current MVP boundary and remaining production gates:
 
 - [Archify source](./glow-architecture.architecture.json)
 - [Interactive architecture map](./glow-architecture.html)
@@ -15,7 +15,7 @@ The checked Archify source and its standalone interactive map are the visual sou
 - [Generation job lifecycle source](./glow-generation-job.lifecycle.json)
 - [Generation job lifecycle](./glow-generation-job.lifecycle.html)
 
-The maps deliberately distinguish implemented components (`implemented`, `mock-first`) from production work (`planned`). Supabase Auth, snapshot/RLS, consent-gated private media, the authenticated staging AI boundary, and durable staging generation jobs are implemented; a real external AI provider and App Store billing remain planned.
+The maps deliberately distinguish implemented components (`implemented`, `mock-first`) from remaining work (`planned`). Supabase Auth, snapshot/RLS, consent-gated private media, the authenticated production AI boundary, and durable generation jobs are implemented; billing and production hardening remain planned.
 
 ## Existing repository
 
@@ -30,7 +30,7 @@ The repository was empty at the start of implementation: no source files, packag
 - `ImageAnalysisProvider`, `ImageGenerationProvider`, and `RecommendationProvider` are the only AI seams. The mock provider is the default implementation.
 - `GenerationJob` is asynchronous even in mock mode. It has `queued`, `processing`, `completed`, and `failed` states; credit reservation/refund stays in domain code.
 - Images use private URI metadata in the app layer. Local/data image URIs are excluded from the snapshot seam; the Supabase media adapter uploads consented bytes to user-owned paths, returns signed URLs, and persists only storage metadata.
-- AI requests use a mode-gated adapter. `MOCK` stays local; `STAGING` and `PRODUCTION` invoke the `ai` Edge Function with path-only inputs, while the function verifies the bearer JWT and owner selfie paths before returning the current staging contract.
+- AI requests use a mode-gated adapter. `MOCK` stays local; `STAGING` and `PRODUCTION` invoke the `ai` Edge Function with path-only inputs, while the function verifies the bearer JWT and owner selfie paths before returning the provider-backed contract.
 - Analytics accepts event names and safe properties only; raw image bytes and URLs are excluded.
 
 ## Decisions locked by the map
@@ -38,7 +38,7 @@ The repository was empty at the start of implementation: no source files, packag
 - `app/` owns route composition and screen interaction; screens do not call storage or provider SDKs directly.
 - `AppStore` remains the application-flow coordinator. It may call domain functions and provider interfaces, but domain rules stay framework-free.
 - `AsyncStorage` is a temporary local guest/offline-cache adapter. It is not a production boundary for secrets or shared user data.
-- The AI adapter remains mode-gated: the server contract, authenticated ownership checks, deterministic job creation, and persisted staging lifecycle are implemented, while real provider integration, timeout policy, and authoritative failure/refund settlement remain production gates.
+- The AI adapter remains mode-gated: the server contract, authenticated ownership checks, production provider calls, deterministic job creation, and persisted lifecycle are implemented, while timeout/retry policy and authoritative failure/refund settlement remain production gates.
 - Supabase Auth, the user-scoped snapshot/RLS seam, and signed-URL private media are implemented and live-verified in the configured development project; the normalized selfie table and private Storage policies enforce the same owner boundary.
 - Billing is an external verification boundary. The mobile client may request a purchase, but entitlement truth must come from verified store receipts/webhooks.
 
@@ -46,9 +46,9 @@ The repository was empty at the start of implementation: no source files, packag
 
 1. **Completed:** Add an authenticated session and a Supabase-backed persistence adapter behind the existing store boundary. Live owner/non-owner checks passed in the configured development project.
 2. **Completed:** Add consent-gated private selfie upload through user-scoped paths and signed URLs, owner metadata, signed-URL refresh, and delete-all cleanup.
-3. **Completed in staging:** Move analysis and generation calls behind an authenticated `ai` Edge Function boundary. Inputs are path-only, provider keys stay server-side, and the existing `queued → processing → completed|failed` lifecycle remains behind the adapter.
-4. **Completed in staging:** Persist the generation job id, provider job id, status transitions, and owner scope server-side. A deterministic job UUID makes retried requests converge on one row. See the [job lifecycle map](./glow-generation-job.lifecycle.html).
-5. Connect a real AI provider with timeout, retry, and authoritative failure/refund policy.
+3. **Completed in production:** Move analysis and generation calls behind an authenticated `ai` Edge Function boundary. Inputs are path-only, provider keys stay server-side, and `gpt-5.6-luna` plus `gpt-image-2` run behind the existing `queued → processing → completed|failed` lifecycle.
+4. **Completed in production:** Persist the generation job id, provider tracking id, status transitions, and owner scope server-side. A deterministic job UUID makes retried requests converge on one row. See the [job lifecycle map](./glow-generation-job.lifecycle.html).
+5. Harden the real AI provider boundary with timeout, retry, rate-limit, and authoritative failure/refund policy.
 6. Add store billing receipt verification and webhook reconciliation. Drive `Glow+` and credit balances from verified entitlements, not client-supplied values.
 7. Add production rate limits, safe analytics, error reporting, cancellation policy, and release checks only after the previous boundaries are testable.
 
@@ -65,4 +65,4 @@ The mobile client may hold public Supabase configuration and user-scoped session
 - Store billing is represented by entitlement and purchase interfaces; no external payment provider is faked.
 - The timeline records selected looks and photos but does not judge attractiveness or progress.
 
-These ceilings preserve the product flow while a real provider and authoritative billing settlement are unavailable. The staging function persists a deterministic `generation_jobs` row and advances it on polling; provider callbacks and billing reconciliation remain production gates.
+These ceilings preserve the product flow while authoritative billing settlement and production hardening are unavailable. The production function persists a deterministic `generation_jobs` row and advances it on polling; billing reconciliation remains a production gate.

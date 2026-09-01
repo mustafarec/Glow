@@ -5041,8 +5041,8 @@
         <path d="M 154 157 L 748 157" class="a-emphasis" stroke-width="2.2" marker-end="url(#arrowhead-emphasis)"/>
 
         <!-- Transition paths -->
-        <path data-edge-from="queued" data-edge-to="processing" data-edge-label="dispatch provider job" data-edge-key="0" data-edge-id="dispatch" data-composition-points="153,157;343,157" d="M 153 157 L 343 157" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="2" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="processing" data-edge-to="completed" data-edge-label="persist completed state" data-edge-key="1" data-edge-id="success" data-composition-points="461,157;651,157" d="M 461 157 L 651 157" class="a-emphasis" data-animate="edge" style="--step:1" stroke-width="2" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="queued" data-edge-to="processing" data-edge-label="claim for provider processing" data-edge-key="0" data-edge-id="dispatch" data-composition-points="153,157;343,157" d="M 153 157 L 343 157" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="2" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="processing" data-edge-to="completed" data-edge-label="persist completed state + private result" data-edge-key="1" data-edge-id="success" data-composition-points="461,157;651,157" d="M 461 157 L 651 157" class="a-emphasis" data-animate="edge" style="--step:1" stroke-width="2" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="processing" data-edge-to="failed" data-edge-label="persist failure + settlement marker" data-edge-key="2" data-edge-id="error" data-composition-points="402,188;402,450" d="M 402 188 L 402 450" class="a-security" data-animate="edge" style="--step:2" stroke-width="1.1" marker-end="url(#arrowhead-security)"/>
 
         <!-- States -->
@@ -5060,8 +5060,8 @@
         <text data-detail="fine" x="94" y="177" class="t-frontend" font-size="7" text-anchor="middle">pending</text>
         </g>
 
-        <g id="node-processing" data-node-id="processing" data-node-label="Processing" tabindex="0" role="button" aria-label="Focus Processing, provider job tracked, Generation rail" aria-pressed="false" data-node-kind="active" data-node-sublabel="provider job tracked" data-node-tag="running" data-node-context="Generation rail">
-          <title>Processing · provider job tracked · Generation rail · running</title>
+        <g id="node-processing" data-node-id="processing" data-node-label="Processing" tabindex="0" role="button" aria-label="Focus Processing, OpenAI image request, Generation rail" aria-pressed="false" data-node-kind="active" data-node-sublabel="OpenAI image request" data-node-tag="running" data-node-context="Generation rail">
+          <title>Processing · OpenAI image request · Generation rail · running</title>
           <rect x="343" y="126" width="118" height="62" rx="7" class="c-mask"/>
           <rect x="343" y="126" width="118" height="62" rx="7" class="c-backend" data-animate="node" style="--step:1" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="active" class="semantic-sigil s-backend" transform="translate(444 132) scale(0.6875)">
@@ -5069,12 +5069,12 @@
           </g>
         <text data-detail="fine" x="353" y="140" class="t-backend" font-size="7" font-weight="700">02</text>
           <text data-node-label="" data-detail-anchor="" x="402" y="147" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Processing</text>
-          <text data-detail="context" x="402" y="163" class="t-muted" font-size="7" text-anchor="middle">provider job tracked</text>
+          <text data-detail="context" x="402" y="163" class="t-muted" font-size="7" text-anchor="middle">OpenAI image request</text>
         <text data-detail="fine" x="402" y="177" class="t-backend" font-size="7" text-anchor="middle">running</text>
         </g>
 
-        <g id="node-completed" data-node-id="completed" data-node-label="Completed" tabindex="0" role="button" aria-label="Focus Completed, result state persisted, Generation rail" aria-pressed="false" data-node-kind="success" data-node-sublabel="result state persisted" data-node-tag="success" data-node-context="Generation rail">
-          <title>Completed · result state persisted · Generation rail · success</title>
+        <g id="node-completed" data-node-id="completed" data-node-label="Completed" tabindex="0" role="button" aria-label="Focus Completed, private result persisted, Generation rail" aria-pressed="false" data-node-kind="success" data-node-sublabel="private result persisted" data-node-tag="success" data-node-context="Generation rail">
+          <title>Completed · private result persisted · Generation rail · success</title>
           <rect x="651" y="126" width="118" height="62" rx="7" class="c-mask"/>
           <rect x="651" y="126" width="118" height="62" rx="7" class="c-database" data-animate="node" style="--step:2" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="success" class="semantic-sigil s-database" transform="translate(752 132) scale(0.6875)">
@@ -5083,7 +5083,7 @@
           </g>
         <text data-detail="fine" x="661" y="140" class="t-database" font-size="7" font-weight="700">03</text>
           <text data-node-label="" data-detail-anchor="" x="710" y="147" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Completed</text>
-          <text data-detail="context" x="710" y="163" class="t-muted" font-size="7" text-anchor="middle">result state persisted</text>
+          <text data-detail="context" x="710" y="163" class="t-muted" font-size="7" text-anchor="middle">private result persisted</text>
         <text data-detail="fine" x="710" y="177" class="t-database" font-size="7" text-anchor="middle">success</text>
         </g>
 
@@ -5102,13 +5102,13 @@
         </g>
 
         <!-- Transition labels -->
-        <g data-detail="context" data-edge-from="queued" data-edge-to="processing" data-edge-label="dispatch provider job" data-edge-key="0" data-edge-id="dispatch">
-          <rect x="190.55" y="136" width="114.9" height="16" rx="4" class="c-mask"/>
-          <text x="248" y="147" class="t-backend" font-size="8" text-anchor="middle">dispatch provider job</text>
+        <g data-detail="context" data-edge-from="queued" data-edge-to="processing" data-edge-label="claim for provider processing" data-edge-key="0" data-edge-id="dispatch">
+          <rect x="170.95" y="136" width="154.10000000000002" height="16" rx="4" class="c-mask"/>
+          <text x="248" y="147" class="t-backend" font-size="8" text-anchor="middle">claim for provider processing</text>
         </g>
-        <g data-detail="context" data-edge-from="processing" data-edge-to="completed" data-edge-label="persist completed state" data-edge-key="1" data-edge-id="success">
-          <rect x="493.65" y="136" width="124.7" height="16" rx="4" class="c-mask"/>
-          <text x="556" y="147" class="t-backend" font-size="8" text-anchor="middle">persist completed state</text>
+        <g data-detail="context" data-edge-from="processing" data-edge-to="completed" data-edge-label="persist completed state + private result" data-edge-key="1" data-edge-id="success">
+          <rect x="452" y="216" width="208" height="16" rx="4" class="c-mask"/>
+          <text x="556" y="227" class="t-backend" font-size="8" text-anchor="middle">persist completed state + private result</text>
         </g>
         <g data-detail="context" data-edge-from="processing" data-edge-to="failed" data-edge-label="persist failure + settlement marker" data-edge-key="2" data-edge-id="error">
           <rect x="310.25" y="191" width="183.5" height="16" rx="4" class="c-mask"/>
@@ -5328,7 +5328,7 @@
         </div>
         <ul>
           <li>&bull; Every job status is persisted in generation_jobs</li>
-          <li>&bull; Provider ids stay attached to the user-owned job row</li>
+          <li>&bull; Provider tracking ids stay attached to the user-owned job row</li>
           <li>&bull; Polling reads only the current user’s job</li>
         </ul>
       </div>
@@ -5340,8 +5340,8 @@
         </div>
         <ul>
           <li>&bull; Failed is an explicit terminal state</li>
-          <li>&bull; The credits_refunded marker is ready for idempotent settlement</li>
-          <li>&bull; Real provider callbacks and billing reconciliation remain later gates</li>
+          <li>&bull; The credits_refunded marker records settlement state for idempotent recovery</li>
+          <li>&bull; Authoritative credit settlement, rate limits, and billing reconciliation remain later gates</li>
         </ul>
       </div>
     </div>

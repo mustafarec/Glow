@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Glow — Authenticated Server AI Boundary",
+    "output": "docs/glow-ai-boundary.sequence.html",
+    "viewBox": [1280, 640],
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "analyze-owner-path",
+        "label": "Analyze through the boundary",
+        "focus": ["client", "appstore", "adapter", "function", "auth"],
+        "note": "The server receives authenticated owner paths, never local image URIs or provider secrets."
+      },
+      {
+        "id": "generate-server-job",
+        "label": "Queue a server generation",
+        "focus": ["client", "appstore", "adapter", "function", "provider"],
+        "note": "The existing queued → processing → completed|failed lifecycle stays behind the adapter."
+      },
+      {
+        "id": "failure-recovery",
+        "label": "Keep failure recoverable",
+        "focus": ["appstore", "adapter", "function", "provider"],
+        "note": "Provider or polling failures return through the same job path so the client can settle credits once."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "Glow UI" },
+    { "id": "appstore", "type": "frontend", "label": "AppStore" },
+    { "id": "adapter", "type": "backend", "label": "AI Adapter" },
+    { "id": "function", "type": "backend", "label": "AI Edge Function" },
+    { "id": "auth", "type": "security", "label": "Supabase Auth + RLS" },
+    { "id": "provider", "type": "cloud", "label": "AI Provider" }
+  ],
+  "segments": [
+    { "from": 150, "to": 340, "label": "1. Analyze + verify owner" },
+    { "from": 350, "to": 590, "label": "2. Generate + observe job" }
+  ],
+  "messages": [
+    { "from": "client", "to": "appstore", "y": 160, "label": "runAnalysis()", "variant": "emphasis" },
+    { "from": "appstore", "to": "adapter", "y": 188, "label": "aiProvider.analyze(input)", "variant": "emphasis" },
+    { "from": "adapter", "to": "function", "y": 216, "label": "invoke('ai', analyze)", "variant": "security" },
+    { "from": "function", "to": "auth", "y": 244, "label": "Verify JWT + RLS owner path", "variant": "security" },
+    { "from": "auth", "to": "function", "y": 272, "label": "User scope confirmed", "variant": "return" },
+    { "from": "function", "to": "adapter", "y": 300, "label": "GlowProfile (staging)", "variant": "return" },
+    { "from": "adapter", "to": "appstore", "y": 328, "label": "Profile + recommendations", "variant": "return" },
+    { "from": "client", "to": "appstore", "y": 360, "label": "startGeneration(id)", "variant": "emphasis" },
+    { "from": "appstore", "to": "adapter", "y": 388, "label": "aiProvider.generate(input)", "variant": "emphasis" },
+    { "from": "adapter", "to": "function", "y": 416, "label": "invoke('ai', generate)", "variant": "security" },
+    { "from": "function", "to": "provider", "y": 444, "label": "Generate with server key", "variant": "security" },
+    { "from": "function", "to": "adapter", "y": 472, "label": "queued + job id", "variant": "return" },
+    { "from": "adapter", "to": "function", "y": 500, "label": "get-job(jobId)", "variant": "default" },
+    { "from": "function", "to": "adapter", "y": 528, "label": "processing → completed", "variant": "return" },
+    { "from": "adapter", "to": "appstore", "y": 556, "label": "Job result or failure", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "appstore", "from": 154, "to": 343, "type": "frontend" },
+    { "participant": "adapter", "from": 182, "to": 339, "type": "backend" },
+    { "participant": "function", "from": 210, "to": 305, "type": "backend" },
+    { "participant": "auth", "from": 238, "to": 278, "type": "security" },
+    { "participant": "appstore", "from": 354, "to": 561, "type": "frontend" },
+    { "participant": "adapter", "from": 382, "to": 561, "type": "backend" },
+    { "participant": "function", "from": 410, "to": 536, "type": "backend" },
+    { "participant": "provider", "from": 438, "to": 450, "type": "cloud" }
+  ]
+}

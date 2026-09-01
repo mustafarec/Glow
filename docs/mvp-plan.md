@@ -26,7 +26,7 @@ Feature limits and generation costs are configuration, not screen constants. Fre
 2. Typecheck and run pure domain tests.
 3. Run the Expo web bundle to catch navigation/render errors.
 4. Smoke the primary flow in the browser or simulator.
-5. Only then connect the remaining real storage, AI, and App Store billing adapters. Auth and the first RLS-backed state seam are already connected behind the store boundary.
+5. Only then connect the remaining real AI provider and App Store billing adapters. Auth, private media, and the staging AI boundary are already connected behind the store boundary.
 
 ## Identity/data-perimeter slice status
 
@@ -39,11 +39,11 @@ Feature limits and generation costs are configuration, not screen constants. Fre
 
 ## Next implementation slice
 
-The next slice is server-side AI orchestration, not client-side provider access:
+The server-side AI boundary is now present in staging; its next hardening slice is:
 
-1. Add an authenticated Edge Function boundary for analysis and generation requests.
-2. Persist provider job ids and the existing `queued → processing → completed|failed` lifecycle server-side.
+1. Persist provider job ids and the existing `queued → processing → completed|failed` lifecycle server-side.
+2. Connect a real provider with timeout, retry, refund, and rate-limit policy.
 3. Keep provider keys, retries, refunds, and rate limits out of the Expo bundle.
-4. Keep mock mode, consent-gated media, and the current screen flow working while the server adapter is introduced.
+4. Keep mock mode, consent-gated media, and the current screen flow working while the server adapter evolves.
 
 The AI and billing adapters remain explicit follow-up slices. They should not be added as client-side shortcuts because the Archify map treats those services as production security boundaries.

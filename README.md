@@ -2,7 +2,7 @@
 
 Glow is a mobile-first, English-first AI styling assistant built around a persistent Personal Glow Profile.
 
-The first release is mock-first so the full onboarding-to-visualization flow can be run without paid AI or payment credentials. Supabase Auth, user-scoped snapshots, and consent-gated private selfie media are available behind the store boundary; server-side AI and store billing remain later production slices.
+The first release is mock-first so the full onboarding-to-visualization flow can be run without paid AI or payment credentials. Supabase Auth, user-scoped snapshots, consent-gated private selfie media, and an authenticated staging AI boundary are available behind the store boundary; real provider integration and store billing remain later production slices.
 
 ## Run
 
@@ -26,13 +26,14 @@ The app never assigns beauty or attractiveness scores and never sends raw images
 ## Architecture
 
 - `src/domain`: types, profile/recommendation rules, credits, entitlements, and job state.
-- `src/services`: provider interfaces, mock implementations, Supabase client, and Auth boundary.
+- `src/services`: provider interfaces, mode-gated mock/server adapters, AI contract, Supabase client, and Auth boundary.
 - `src/storage`: guest/user-scoped persistence, the Supabase snapshot adapter, and the consent-gated private media adapter.
 - `src/store`: one small authenticated, persisted app store used by the screens.
 - `app`: Expo Router stack, tab, and focused product routes.
 - `src/components`: reusable visual primitives, not one dashboard component.
 - `src/components/ui`: React Native Reusables components generated from the official registry.
 - `supabase/migrations`: production-oriented schema and row-level security.
+- `supabase/functions/ai`: authenticated server-side AI request boundary with a deterministic staging provider.
 - `tests`: pure business-logic tests.
 
 The checked system plan is maintained with Archify: see [`docs/glow-architecture.architecture.json`](docs/glow-architecture.architecture.json) and the [interactive map](docs/glow-architecture.html). Architecture changes are planned in the JSON, validated/delivered, and then implemented in the app.
@@ -41,4 +42,4 @@ The shared Glow UI layer is built on [React Native Reusables](https://github.com
 
 ## Modes and environment
 
-The default mode is `MOCK`. `EXPO_PUBLIC_AI_MODE` can later select `STAGING` or `PRODUCTION`. Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to enable Auth and account-scoped sync; service-role, AI, payment, and webhook secrets must remain in server-side Edge Functions and are never placed in the mobile bundle. See `.env.example`.
+The default mode is `MOCK`. `EXPO_PUBLIC_AI_MODE=STAGING` or `PRODUCTION` selects the authenticated `ai` Supabase Edge Function when the public Supabase configuration is present; the app sends action data and owner-scoped storage paths, never local image URIs or provider secrets. Deploy the function with `supabase functions deploy ai` before selecting a server mode. Real provider keys, service-role keys, payment secrets, and webhook secrets must remain in server-side Edge Functions and are never placed in the mobile bundle. See `.env.example`.

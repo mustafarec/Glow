@@ -1,5 +1,8 @@
 import { createMockGlowProfile, createMockRecommendations } from '@/domain/profile';
 import { FocusId, GenerationStatus, GlowGoalId, GlowProfile, Recommendation, SelfieAsset } from '@/domain/types';
+import { supabase } from '@/services/supabase';
+
+import { ServerAIProvider } from './server-ai';
 
 export interface ImageAnalysisInput {
   displayName: string;
@@ -11,6 +14,7 @@ export interface GenerationInput {
   recommendationId: string;
   recommendationTitle: string;
   sourceImageUri: string;
+  sourceStoragePath?: string;
   resultImageUri: string;
 }
 
@@ -72,5 +76,12 @@ class MockAIProvider implements GlowAIProvider {
   }
 }
 
-// ponytail: one mock provider is enough until a real AI adapter is selected by deployment config.
-export const aiProvider: GlowAIProvider = new MockAIProvider();
+export type AIMode = 'MOCK' | 'STAGING' | 'PRODUCTION';
+
+const requestedMode = process.env.EXPO_PUBLIC_AI_MODE?.trim().toUpperCase();
+export const AI_MODE: AIMode = requestedMode === 'STAGING' || requestedMode === 'PRODUCTION' ? requestedMode : 'MOCK';
+
+// ponytail: one server function covers staging and production until a real provider/job store is selected.
+export const aiProvider: GlowAIProvider = AI_MODE === 'MOCK' || !supabase
+  ? new MockAIProvider()
+  : new ServerAIProvider(supabase);

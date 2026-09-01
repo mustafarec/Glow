@@ -47,9 +47,18 @@
       "id": "ai-adapter",
       "type": "backend",
       "label": "AI provider adapter",
-      "sublabel": "analyze · generate",
-      "tag": "mock-first",
+      "sublabel": "mock · server invoke",
+      "tag": "mode-gated",
       "pos": [980, 330],
+      "size": [210, 70]
+    },
+    {
+      "id": "ai-function",
+      "type": "backend",
+      "label": "Supabase Edge Function",
+      "sublabel": "auth · request contract",
+      "tag": "staging-ready",
+      "pos": [960, 100],
       "size": [210, 70]
     },
     {
@@ -92,9 +101,9 @@
       "id": "ai-services",
       "type": "external",
       "label": "AI services",
-      "sublabel": "server-side API",
-      "tag": "planned",
-      "pos": [1220, 330],
+      "sublabel": "provider API · server key",
+      "tag": "next provider",
+      "pos": [1200, 100],
       "size": [160, 70]
     },
     {
@@ -112,6 +121,12 @@
       "kind": "region",
       "label": "Glow mobile client — implemented MVP",
       "wraps": ["ui", "store", "domain", "ai-adapter", "device-media", "local-store", "media-adapter"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Server boundary — no provider secrets in Expo",
+      "wraps": ["ai-function", "ai-services"],
+      "pad": 12
     }
   ],
   "connections": [
@@ -185,12 +200,31 @@
     },
     {
       "from": "ai-adapter",
+      "to": "ai-function",
+      "label": "authenticated invoke",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [850, 210]
+    },
+    {
+      "from": "ai-function",
       "to": "ai-services",
-      "label": "replace mock with server adapter",
-      "variant": "dashed",
+      "label": "provider key stays server-side",
+      "variant": "security",
       "fromSide": "right",
       "toSide": "left",
-      "labelAt": [1205, 414]
+      "labelAt": [1300, 280]
+    },
+    {
+      "from": "ai-function",
+      "to": "supabase",
+      "label": "verify JWT + owner paths",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[1065, 200], [1205, 200], [1205, 520], [1085, 520]],
+      "labelAt": [1260, 410]
     },
     {
       "from": "store",
@@ -199,7 +233,7 @@
       "variant": "dashed",
       "fromSide": "bottom",
       "toSide": "top",
-      "labelAt": [1180, 500]
+      "labelAt": [1040, 450]
     },
     {
       "from": "billing",
@@ -227,7 +261,7 @@
       "title": "Production gates",
       "items": [
         "Current slices: Supabase Auth, snapshot/RLS, and consent-gated private media.",
-        "Next: move AI provider calls, billing verification, and webhook secrets behind server-side boundaries.",
+        "Next: connect a real AI provider, persist server-side jobs, and add billing/webhook verification.",
         "Keep EXPO_PUBLIC_* limited to non-secret client configuration."
       ]
     },

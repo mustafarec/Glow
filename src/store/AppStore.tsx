@@ -14,7 +14,7 @@ import {
   RecommendationFeedback,
   TimelineEntry,
 } from '@/domain/types';
-import { aiProvider } from '@/services/ai';
+import { AI_MODE, aiProvider } from '@/services/ai';
 import { track } from '@/services/analytics';
 import { AuthActionResult, AuthProvider, AuthSnapshot, getCurrentAuthSnapshot, getInitialAuthSnapshot, requestMagicLink, signInWithProvider, signOutCurrentUser, subscribeToAuthChanges } from '@/services/auth';
 import { supabase, supabaseConfigured } from '@/services/supabase';
@@ -241,7 +241,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     const profile = await aiProvider.analyze({ displayName: current.displayName, goal: current.goal, selfies });
     const recommendations = await aiProvider.recommend(profile, current.goal, current.focus);
     updateState((next) => ({ ...next, profile, recommendations, selfies: next.selfies.length ? next.selfies : selfies, hasOnboarded: true }));
-    track('glow_profile_created', { mode: 'mock', selfieCount: selfies.length });
+    track('glow_profile_created', { mode: AI_MODE.toLowerCase(), selfieCount: selfies.length });
     track('onboarding_completed', { goal: current.goal });
   }, [updateState]);
 
@@ -310,17 +310,22 @@ export function AppProvider({ children }: PropsWithChildren) {
         recommendationId,
         recommendationTitle: recommendation.title,
         sourceImageUri: current.selfies[0]?.uri ?? DEMO_SELFIE_URI,
+        sourceStoragePath: current.selfies[0]?.storagePath,
         resultImageUri: recommendation.imageUri,
       });
       updateState((next) => ({ ...next, generationJobs: { ...next.generationJobs, [jobId]: { ...next.generationJobs[jobId], status: 'processing', providerJobId: providerJob.id, updatedAt: new Date().toISOString() } } }));
 
       const poll = async () => {
-        const result = await aiProvider.getJob(providerJob.id);
-        if (result.status === 'completed' || result.status === 'failed') {
-          completeGeneration(jobId, providerJob.id, result.status, result.resultUri, result.error);
-          return;
+        try {
+          const result = await aiProvider.getJob(providerJob.id);
+          if (result.status === 'completed' || result.status === 'failed') {
+            completeGeneration(jobId, providerJob.id, result.status, result.resultUri, result.error);
+            return;
+          }
+          setTimeout(() => void poll(), 300);
+        } catch (error) {
+          completeGeneration(jobId, providerJob.id, 'failed', undefined, error instanceof Error ? error.message : undefined);
         }
-        setTimeout(() => void poll(), 300);
       };
       void poll();
     } catch (error) {
@@ -379,7 +384,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     setState(next);
     suppressNextPersistRef.current = true;
     setHydrated(true);
-  }, [storage]);
+  }, [mediaStorage, storage]);
 
   const value = useMemo<AppStoreValue>(() => ({
     state,

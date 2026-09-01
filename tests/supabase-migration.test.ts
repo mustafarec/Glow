@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const migrationPath = path.resolve(process.cwd(), 'supabase/migrations/0002_identity_state_snapshot.sql');
 const schemaPath = path.resolve(process.cwd(), 'supabase/migrations/0001_glow_schema.sql');
+const aiMigrationPath = path.resolve(process.cwd(), 'supabase/migrations/0003_openai_media_jobs.sql');
 
 describe('Supabase identity migration contract', () => {
   it('creates a user-owned snapshot with RLS and an update timestamp', async () => {
@@ -32,5 +33,14 @@ describe('Supabase identity migration contract', () => {
     expect(sql).toContain("status in ('queued', 'processing', 'completed', 'failed')");
     expect(sql).toContain('credits_refunded boolean not null default false');
     expect(sql).toMatch(/create policy generation_jobs_self[\s\S]*user_id = auth\.uid\(\)/);
+  });
+
+  it('keeps production generated media private', async () => {
+    const sql = await readFile(aiMigrationPath, 'utf8');
+    expect(sql).toContain("values ('glow-generated', 'glow-generated', false)");
+    expect(sql).toContain('add column if not exists source_storage_path text');
+    expect(sql).toContain('add column if not exists result_storage_path text');
+    expect(sql).toMatch(/create policy glow_generated_read[\s\S]*bucket_id = 'glow-generated'[\s\S]*auth\.uid\(\)/);
+    expect(sql).toMatch(/create policy glow_generated_insert[\s\S]*bucket_id = 'glow-generated'[\s\S]*auth\.uid\(\)/);
   });
 });

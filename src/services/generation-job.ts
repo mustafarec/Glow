@@ -8,14 +8,21 @@ const serverCreditCosts: Record<string, number> = {
   'complete-glow': 15,
 };
 
+const serverCategoryCosts: Record<string, number> = {
+  hairstyle: 5,
+  'hair-color': 5,
+  makeup: 5,
+  'complete-glow': 15,
+};
+
 export const STAGING_JOB_TIMINGS = {
   processingAfterMs: 250,
   completedAfterMs: 900,
 } as const;
 
-export function getServerGenerationCreditCost(recommendationId: string): number {
+export function getServerGenerationCreditCost(recommendationId: string, recommendationCategory?: string): number {
   // ponytail: unknown ids pay the smallest preview cost until recommendations are server-owned.
-  return serverCreditCosts[recommendationId] ?? 5;
+  return serverCreditCosts[recommendationId] ?? serverCategoryCosts[recommendationCategory ?? ''] ?? 5;
 }
 
 export function getNextStagingStatus(status: GenerationJobStatus, ageMs: number): GenerationJobStatus {

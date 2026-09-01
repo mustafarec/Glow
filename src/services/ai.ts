@@ -1,5 +1,5 @@
 import { createMockGlowProfile, createMockRecommendations } from '@/domain/profile';
-import { FocusId, GenerationStatus, GlowGoalId, GlowProfile, Recommendation, SelfieAsset } from '@/domain/types';
+import { FocusId, GenerationStatus, GlowGoalId, GlowProfile, Recommendation, RecommendationCategory, SelfieAsset } from '@/domain/types';
 import { supabase } from '@/services/supabase';
 
 import { ServerAIProvider } from './server-ai';
@@ -14,6 +14,7 @@ export interface GenerationInput {
   clientRequestId: string;
   recommendationId: string;
   recommendationTitle: string;
+  recommendationCategory: RecommendationCategory;
   sourceImageUri: string;
   sourceStoragePath?: string;
   resultImageUri: string;

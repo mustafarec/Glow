@@ -310,6 +310,7 @@ export function AppProvider({ children }: PropsWithChildren) {
         clientRequestId: jobId,
         recommendationId,
         recommendationTitle: recommendation.title,
+        recommendationCategory: recommendation.category,
         sourceImageUri: current.selfies[0]?.uri ?? DEMO_SELFIE_URI,
         sourceStoragePath: current.selfies[0]?.storagePath,
         resultImageUri: recommendation.imageUri,

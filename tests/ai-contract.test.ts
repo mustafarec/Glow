@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { createMockGlowProfile } from '../src/domain/profile';
 import type { ImageAnalysisInput } from '../src/services/ai';
-import { ServerAIProvider, buildServerAnalysisRequest, buildServerGenerationRequest } from '../src/services/server-ai';
+import { ServerAIProvider, buildServerAnalysisRequest, buildServerGenerationRequest, buildServerRecommendationRequest } from '../src/services/server-ai';
 import { parseServerAIResponse } from '../src/services/ai-contract';
 
 const analysisInput: ImageAnalysisInput = {
@@ -30,8 +30,8 @@ describe('server AI boundary contract', () => {
   });
 
   it('keeps generation requests path-only', () => {
-    const request = buildServerGenerationRequest({ clientRequestId: 'job-1', recommendationId: 'look-1', recommendationTitle: 'Layers', sourceImageUri: 'https://signed.example/private.jpg', sourceStoragePath: 'user-a/private.jpg', resultImageUri: 'https://demo.example/result.jpg' });
-    expect(request).toEqual({ action: 'generate', clientRequestId: 'job-1', recommendationId: 'look-1', recommendationTitle: 'Layers', sourceStoragePath: 'user-a/private.jpg' });
+    const request = buildServerGenerationRequest({ clientRequestId: 'job-1', recommendationId: 'look-1', recommendationTitle: 'Layers', recommendationCategory: 'hairstyle', sourceImageUri: 'https://signed.example/private.jpg', sourceStoragePath: 'user-a/private.jpg', resultImageUri: 'https://demo.example/result.jpg' });
+    expect(request).toEqual({ action: 'generate', clientRequestId: 'job-1', recommendationId: 'look-1', recommendationTitle: 'Layers', recommendationCategory: 'hairstyle', sourceStoragePath: 'user-a/private.jpg' });
     expect(JSON.stringify(request)).not.toContain('signed.example');
   });
 
@@ -54,6 +54,11 @@ describe('server AI boundary contract', () => {
     expect(second.invoke).toHaveBeenCalledWith('ai', { body: { action: 'get-job', jobId: 'job-1' } });
   });
 
+  it('sends the analyzed profile and focus to the server recommendation boundary', async () => {
+    const profile = createMockGlowProfile('Maya', 'soft-glam');
+    expect(buildServerRecommendationRequest(profile, 'soft-glam', 'overall')).toEqual({ action: 'recommend', profile, goal: 'soft-glam', focus: 'overall' });
+  });
+
   it('keeps the Edge Function on the authenticated, non-service-role path', async () => {
     const source = await readFile(path.resolve(process.cwd(), 'supabase/functions/ai/index.ts'), 'utf8');
     expect(source).toContain('auth.getUser(token)');
@@ -63,6 +68,9 @@ describe('server AI boundary contract', () => {
     expect(source).toContain(".eq('user_id', userId)");
     expect(source).toContain('crypto.subtle.digest');
     expect(source).not.toContain('stagingJob(jobId)');
-    expect(source).not.toMatch(/SERVICE_ROLE|service_role|OPENAI_API_KEY/);
+    expect(source).not.toMatch(/SERVICE_ROLE|service_role/);
+    expect(source).toContain('OPENAI_API_KEY');
+    expect(source).toContain("gpt-5.6-luna");
+    expect(source).toContain("gpt-image-2");
   });
 });

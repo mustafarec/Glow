@@ -9,6 +9,7 @@ import type {
   ServerAnalyzeRequest,
   ServerGenerateRequest,
   ServerGetJobRequest,
+  ServerRecommendRequest,
   ServerSelfieRef,
 } from './ai-contract';
 import { AI_FUNCTION_NAME, isOwnedServerPath, parseServerAIResponse } from './ai-contract';
@@ -38,8 +39,13 @@ export function buildServerGenerationRequest(input: GenerationInput): ServerGene
     clientRequestId: input.clientRequestId,
     recommendationId: input.recommendationId,
     recommendationTitle: input.recommendationTitle,
+    recommendationCategory: input.recommendationCategory,
     ...(input.sourceStoragePath ? { sourceStoragePath: input.sourceStoragePath } : {}),
   };
+}
+
+export function buildServerRecommendationRequest(profile: GlowProfile, goal: GlowGoalId, focus: FocusId): ServerRecommendRequest {
+  return { action: 'recommend', profile, goal, focus };
 }
 
 export class ServerAIProvider implements GlowAIProvider {
@@ -58,7 +64,13 @@ export class ServerAIProvider implements GlowAIProvider {
   }
 
   async recommend(profile: GlowProfile, goal: GlowGoalId, focus: FocusId): Promise<Recommendation[]> {
-    return createMockRecommendations(profile, goal, focus);
+    const response = await this.invoke(buildServerRecommendationRequest(profile, goal, focus));
+    if (response.action !== 'recommend') throw new Error('The server AI boundary returned the wrong response.');
+    const fallback = createMockRecommendations(profile, goal, focus);
+    return response.recommendations.map((item, index) => ({
+      ...item,
+      imageUri: fallback[index]?.imageUri ?? fallback[0]?.imageUri ?? '',
+    }));
   }
 
   async generate(input: GenerationInput): Promise<ProviderGenerationJob> {
